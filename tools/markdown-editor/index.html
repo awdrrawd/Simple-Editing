@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>格式小幫手 · Markdown 寫作工具</title>
+<script src="../../assets/shared.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<link rel="stylesheet" id="hljs-theme" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<style>
+  :root{ --radius:6px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --danger:#cf222e; --danger-soft:#ffebe9;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --danger:#f85149; --danger-soft:#2d1214;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0; height:100vh; overflow:hidden;
+    display:flex; flex-direction:column;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:10px 18px; flex-wrap:wrap;
+    background:var(--bg); border-bottom:1px solid var(--border);
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:30px; height:30px; border-radius:6px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--accent); color:var(--accent-text); font-weight:700; font-size:15px;
+  }
+  .brand h1{font-size:15px; margin:0; font-weight:600;}
+
+  .filebar{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .filebar label{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary);}
+  #filename{
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:6px; padding:5px 9px; font-size:13px; width:120px;
+  }
+  #filename:focus{outline:2px solid var(--accent); outline-offset:1px;}
+
+  .btn{
+    font-size:12.5px; font-weight:500; cursor:pointer; border-radius:6px;
+    padding:6px 12px; border:1px solid var(--border);
+    background:var(--bg-inset); color:var(--text);
+    box-shadow:var(--shadow);
+  }
+  .btn:hover{background:var(--bg-hover);}
+  .btn:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  .btn.accent{background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:600;}
+  .btn.danger{color:var(--danger); border-color:var(--danger-soft);}
+  .btn.icon{padding:6px 9px;}
+
+  /* ---------- export dropdown ---------- */
+  .dropdown{position:relative;}
+  .dropdown-menu{
+    display:none; position:absolute; top:calc(100% + 4px); right:0;
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.15); min-width:140px; z-index:20; overflow:hidden;
+  }
+  .dropdown-menu.open{display:block;}
+  .dropdown-menu button{
+    display:block; width:100%; text-align:left; padding:8px 12px;
+    border:none; background:none; color:var(--text); font-size:12.5px; cursor:pointer;
+  }
+  .dropdown-menu button:hover{background:var(--bg-hover);}
+  .dropdown-caret{font-size:10px; margin-left:2px;}
+
+  /* ---------- toolbar ---------- */
+  .toolbar-wrap{background:var(--bg-inset); border-bottom:1px solid var(--border);}
+  .toolbar-row{
+    display:flex; align-items:center; gap:4px; flex-wrap:wrap;
+    padding:6px 18px;
+  }
+  .toolbar-row:first-child{padding-top:8px; padding-bottom:3px;}
+  .toolbar-row:last-child{padding-top:3px; padding-bottom:8px;}
+  .tgroup{display:flex; gap:2px; padding:0 7px; border-right:1px solid var(--border);}
+  .tgroup:last-child{border-right:none;}
+  .tbtn{
+    min-width:30px; height:28px; padding:0 8px;
+    background:var(--bg); color:var(--text); border:1px solid var(--border);
+    border-radius:6px; cursor:pointer; font-size:12.5px; font-weight:600;
+  }
+  .tbtn:hover{background:var(--bg-hover);}
+  .tbtn:active{background:var(--accent-soft);}
+  .tbtn:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  .tbtn.warn{color:var(--danger);}
+
+  /* ---------- mobile tabs ---------- */
+  .tabs-mobile{display:none; gap:8px; padding:8px 18px; background:var(--bg);}
+  .tabbtn{
+    flex:1; padding:7px; border-radius:6px; border:1px solid var(--border);
+    background:var(--bg-inset); color:var(--text-secondary); font-size:12.5px; cursor:pointer;
+  }
+  .tabbtn.active{background:var(--accent); color:var(--accent-text); border-color:var(--accent); font-weight:600;}
+
+  /* ---------- workspace ---------- */
+  .workspace{flex:1; display:flex; overflow:hidden;}
+  .pane{flex:1; display:flex; flex-direction:column; min-width:0; background:var(--bg);}
+  .pane + .pane{border-left:1px solid var(--border);}
+  .pane-label{
+    font-size:11px; font-weight:600; letter-spacing:1px; text-transform:uppercase;
+    color:var(--text-secondary); padding:8px 20px; border-bottom:1px solid var(--border);
+  }
+  #editor{
+    flex:1; width:100%; resize:none; border:none; outline:none;
+    font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;
+    font-size:14px; line-height:1.65; color:var(--text); background:var(--bg);
+    padding:16px 22px;
+  }
+  #editor::placeholder{color:var(--text-secondary);}
+
+  .preview{flex:1; overflow-y:auto; padding:16px 26px 34px; line-height:1.7; font-size:15px;}
+  .preview h1,.preview h2{border-bottom:1px solid var(--border); padding-bottom:6px;}
+  .preview h1{font-size:1.7em;} .preview h2{font-size:1.4em;} .preview h3{font-size:1.15em;}
+  .preview code{font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",monospace; background:var(--bg-inset); padding:1px 5px; border-radius:4px; font-size:0.9em;}
+  .preview pre{background:var(--bg-inset); border:1px solid var(--border); padding:12px 14px; border-radius:6px; overflow-x:auto;}
+  .preview pre code{background:none; padding:0;}
+  .preview blockquote{border-left:3px solid var(--border); margin:0 0 1em; padding:2px 14px; color:var(--text-secondary);}
+  .preview table{border-collapse:collapse; width:100%; margin:1em 0;}
+  .preview th,.preview td{border:1px solid var(--border); padding:6px 12px; text-align:left;}
+  .preview th{background:var(--bg-inset);}
+  .preview img{max-width:100%; border-radius:4px;}
+  .preview hr{border:none; border-top:1px solid var(--border); margin:1.6em 0;}
+  .preview ul,.preview ol{padding-left:1.4em;}
+  .preview a{color:var(--accent);}
+  .preview li{margin:0.15em 0;}
+
+  /* ---------- status bar ---------- */
+  .statusbar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:8px 18px; background:var(--bg-inset); border-top:1px solid var(--border);
+    font-size:11.5px; color:var(--text-secondary); flex-wrap:wrap;
+  }
+  .hint{color:var(--accent);}
+
+  /* ---------- modal ---------- */
+  .modal-overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:50;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:22px; width:280px; box-shadow:0 20px 50px rgba(0,0,0,0.35);}
+  .modal h3{margin:0 0 16px; font-size:15px;}
+  .modal label{display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; font-size:13px;}
+  .modal input[type=number]{width:70px; padding:6px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);}
+  .modal select{padding:5px 8px; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text); font-size:13px;}
+  .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:8px;}
+
+  @media (max-width: 880px){
+    .tabs-mobile{display:flex;}
+    .pane{display:none;}
+    .pane.active{display:flex;}
+    .filebar label{display:none;}
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">M↓</span>
+      <h1 data-i18n="brandTitle">格式小幫手</h1>
+    </div>
+    <div class="filebar">
+      <label>
+        <span data-i18n="filenameLabel">檔名</span>
+        <input id="filename" type="text" value="我的文件">
+      </label>
+      <button class="btn" id="copyBtn" data-i18n="copyBtn" data-i18n-title="copyBtnTitle" title="複製全部 Markdown 原始碼">複製</button>
+      <button class="btn danger" id="clearBtn" data-i18n="clearBtn" data-i18n-title="clearBtnTitle" title="清空目前內容">清空</button>
+
+      <input id="importInput" type="file" accept=".md,.markdown,text/markdown,text/plain" hidden>
+      <button class="btn" id="importBtn" data-i18n="importBtn" data-i18n-title="importBtnTitle" title="讀入已存在的 .md 檔案">匯入 .md</button>
+
+      <div class="dropdown" id="exportDropdown">
+        <button class="btn accent" id="exportToggleBtn" data-i18n-title="exportBtnTitle" title="匯出目前文件" aria-haspopup="true" aria-expanded="false">
+          <span data-i18n="exportBtn">匯出</span><span class="dropdown-caret">▾</span>
+        </button>
+        <div class="dropdown-menu" id="exportMenu">
+          <button id="exportMdBtn" data-i18n="exportMdOption" data-i18n-title="exportMdOptionTitle" title="下載成 .md 檔">匯出 .md</button>
+          <button id="exportPdfBtn" data-i18n="exportPdfOption" data-i18n-title="exportPdfOptionTitle" title="開啟列印視窗，選擇「另存為 PDF」">匯出 PDF</button>
+        </div>
+      </div>
+
+      <button class="btn" id="themeToggle" data-i18n="themeBtn" data-i18n-title="themeBtnTitle" title="切換深色／淺色（預設跟隨瀏覽器設定）">🌓 主題</button>
+      <button class="btn" id="localeToggle" data-i18n="localeBtn" data-i18n-title="localeBtnTitle" title="切換介面語言">🌐 語系</button>
+      <a class="btn" id="homeBtn" href="../../index.html" data-se-home>🏠 回首頁</a>
+    </div>
+  </header>
+
+  <div class="toolbar-wrap" id="toolbar">
+    <div class="toolbar-row">
+      <div class="tgroup">
+        <button class="tbtn warn" data-action="clearFormat" data-i18n-title="clearFormatTitle" title="清除格式：把選取範圍（或沒選就整篇）的 Markdown 符號去掉，只留下純文字">🧹 <span data-i18n="clearFormatLabel">清除格式</span></button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="h1" data-i18n-title="h1Title" title="標題 1">H1</button>
+        <button class="tbtn" data-action="h2" data-i18n-title="h2Title" title="標題 2">H2</button>
+        <button class="tbtn" data-action="h3" data-i18n-title="h3Title" title="標題 3">H3</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="bold" data-i18n-title="boldTitle" title="粗體（Ctrl+B）"><b>B</b></button>
+        <button class="tbtn" data-action="italic" data-i18n-title="italicTitle" title="斜體（Ctrl+I）"><i>I</i></button>
+        <button class="tbtn" data-action="boldItalic" data-i18n-title="boldItalicTitle" title="粗體+斜體（Markdown 沒有更高一階的『超粗體』，這是標準語法中最強的強調）"><b><i>BI</i></b></button>
+        <button class="tbtn" data-action="strike" data-i18n-title="strikeTitle" title="刪除線"><s>S</s></button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="indent" data-i18n="indentLabel" data-i18n-title="indentTitle" title="增加縮排">→ 縮排</button>
+        <button class="tbtn" data-action="outdent" data-i18n="outdentLabel" data-i18n-title="outdentTitle" title="減少縮排">← 退縮</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="alignLeft" data-i18n="alignLeftLabel" data-i18n-title="alignLeftTitle" title="靠左（標準 Markdown 沒有對齊語法，這會插入 HTML 的 &lt;div align&gt;，GitHub 等支援 HTML 的渲染器才看得出效果）">⇤ 靠左</button>
+        <button class="tbtn" data-action="alignCenter" data-i18n="alignCenterLabel" data-i18n-title="alignCenterTitle" title="置中（同樣是用 HTML div，並非純 Markdown 語法）">↔ 置中</button>
+        <button class="tbtn" data-action="alignRight" data-i18n="alignRightLabel" data-i18n-title="alignRightTitle" title="靠右（同樣是用 HTML div，並非純 Markdown 語法）">⇥ 靠右</button>
+      </div>
+    </div>
+    <div class="toolbar-row">
+      <div class="tgroup">
+        <button class="tbtn" data-action="quote" data-i18n="quoteLabel" data-i18n-title="quoteTitle" title="引用區塊">❝引用</button>
+        <button class="tbtn" data-action="code" data-i18n-title="codeTitle" title="程式碼區塊">&lt;/&gt;</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="ul" data-i18n="ulLabel" data-i18n-title="ulTitle" title="項目符號清單">• 清單</button>
+        <button class="tbtn" data-action="ol" data-i18n="olLabel" data-i18n-title="olTitle" title="編號清單">1. 編號</button>
+        <button class="tbtn" data-action="todo" data-i18n="todoLabel" data-i18n-title="todoTitle" title="待辦清單">☑ 待辦</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="hr" data-i18n="hrLabel" data-i18n-title="hrTitle" title="插入分隔線">─ 分隔線</button>
+        <button class="tbtn" data-action="break" data-i18n="breakLabel" data-i18n-title="breakTitle" title="在同一段內強制換行（一般按 Enter 只會換段落）">↵ 強制換行</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="link" data-i18n="linkLabel" data-i18n-title="linkTitle" title="插入連結（Ctrl+K）">🔗連結</button>
+        <button class="tbtn" data-action="image" data-i18n="imageLabel" data-i18n-title="imageTitle" title="插入圖片">🖼圖片</button>
+        <button class="tbtn" data-action="table" data-i18n="tableLabel" data-i18n-title="tableTitle" title="插入表格">⌗表格</button>
+      </div>
+      <div class="tgroup">
+        <button class="tbtn" data-action="toc" data-i18n="tocLabel" data-i18n-title="tocTitle" title="依文件中的 # 標題自動產生可跳轉的目錄">📑 目錄</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs-mobile">
+    <button class="tabbtn active" data-pane="editorPane" data-i18n="mobileTabEditor">✍️ 手稿</button>
+    <button class="tabbtn" data-pane="previewPane" data-i18n="mobileTabPreview">📖 預覽</button>
+  </div>
+
+  <main class="workspace">
+    <section class="pane active" id="editorPane">
+      <div class="pane-label" data-i18n="paneEditor">手稿</div>
+      <textarea id="editor" spellcheck="false" data-i18n-placeholder="editorPlaceholder" placeholder="在這裡開始輸入…&#10;（右邊會即時顯示格式化後的樣子）"></textarea>
+    </section>
+    <section class="pane" id="previewPane">
+      <div class="pane-label" data-i18n="panePreview">預覽</div>
+      <div id="preview" class="preview"></div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span id="count">字數估計：0　字元：0</span>
+    <span class="hint" data-i18n="statusHint">💡 Ctrl+B 粗體／Ctrl+I 斜體／Ctrl+K 連結，也可以直接點工具列按鈕。</span>
+  </footer>
+
+  <div class="modal-overlay" id="tableModal">
+    <div class="modal">
+      <h3 data-i18n="tableModalTitle">插入表格</h3>
+      <label><span data-i18n="tableModalRows">資料列數（不含標題）</span><input type="number" id="tableRows" min="1" max="20" value="3"></label>
+      <label><span data-i18n="tableModalCols">欄數</span><input type="number" id="tableCols" min="1" max="10" value="3"></label>
+      <label><span data-i18n="tableModalAlign">欄位對齊</span>
+        <select id="tableAlign">
+          <option value="default" data-i18n="tableAlignDefault">預設（靠左）</option>
+          <option value="left" data-i18n="tableAlignLeft">靠左 :---</option>
+          <option value="center" data-i18n="tableAlignCenter">置中 :---:</option>
+          <option value="right" data-i18n="tableAlignRight">靠右 ---:</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="btn" id="tableCancel" data-i18n="tableCancelBtn">取消</button>
+        <button class="btn accent" id="tableConfirm" data-i18n="tableConfirmBtn">插入</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const ta = document.getElementById('editor');
+const preview = document.getElementById('preview');
+const countEl = document.getElementById('count');
+const filenameInput = document.getElementById('filename');
+const root = document.documentElement;
+
+marked.setOptions({ gfm:true, breaks:false });
+
+// ================= i18n =================
+const I18N = {
+  zh: {
+    docTitle:'格式小幫手 · Markdown 寫作工具',
+    brandTitle:'格式小幫手',
+    filenameLabel:'檔名',
+    copyBtn:'複製', copyBtnTitle:'複製全部 Markdown 原始碼',
+    clearBtn:'清空', clearBtnTitle:'清空目前內容',
+    importBtn:'匯入 .md', importBtnTitle:'讀入已存在的 .md 檔案',
+    exportBtn:'匯出', exportBtnTitle:'匯出目前文件',
+    exportMdOption:'匯出 .md', exportMdOptionTitle:'下載成 .md 檔',
+    exportPdfOption:'匯出 PDF', exportPdfOptionTitle:'開啟列印視窗，選擇「另存為 PDF」',
+    themeBtn:'🌓 主題', themeBtnTitle:'切換深色／淺色（預設跟隨瀏覽器設定）',
+    localeBtn:'🌐 語系', localeBtnTitle:'切換介面語言（中文／English）',
+    clearFormatLabel:'清除格式', clearFormatTitle:'清除格式：把選取範圍（或沒選就整篇）的 Markdown 符號去掉，只留下純文字',
+    h1Title:'標題 1', h2Title:'標題 2', h3Title:'標題 3',
+    boldTitle:'粗體（Ctrl+B）', italicTitle:'斜體（Ctrl+I）',
+    boldItalicTitle:'粗體+斜體（Markdown 沒有更高一階的『超粗體』，這是標準語法中最強的強調）',
+    strikeTitle:'刪除線',
+    indentLabel:'→ 縮排', indentTitle:'增加縮排',
+    outdentLabel:'← 退縮', outdentTitle:'減少縮排',
+    alignLeftLabel:'⇤ 靠左', alignLeftTitle:'靠左（標準 Markdown 沒有對齊語法，這會插入 HTML 的 <div align>，GitHub 等支援 HTML 的渲染器才看得出效果）',
+    alignCenterLabel:'↔ 置中', alignCenterTitle:'置中（同樣是用 HTML div，並非純 Markdown 語法）',
+    alignRightLabel:'⇥ 靠右', alignRightTitle:'靠右（同樣是用 HTML div，並非純 Markdown 語法）',
+    quoteLabel:'❝引用', quoteTitle:'引用區塊',
+    codeTitle:'程式碼區塊',
+    ulLabel:'• 清單', ulTitle:'項目符號清單',
+    olLabel:'1. 編號', olTitle:'編號清單',
+    todoLabel:'☑ 待辦', todoTitle:'待辦清單',
+    hrLabel:'─ 分隔線', hrTitle:'插入分隔線',
+    breakLabel:'↵ 強制換行', breakTitle:'在同一段內強制換行（一般按 Enter 只會換段落）',
+    linkLabel:'🔗連結', linkTitle:'插入連結（Ctrl+K）',
+    imageLabel:'🖼圖片', imageTitle:'插入圖片',
+    tableLabel:'⌗表格', tableTitle:'插入表格',
+    tocLabel:'📑 目錄', tocTitle:'依文件中的 # 標題自動產生可跳轉的目錄',
+    mobileTabEditor:'✍️ 手稿', mobileTabPreview:'📖 預覽',
+    paneEditor:'手稿', panePreview:'預覽',
+    editorPlaceholder:'在這裡開始輸入…\n（右邊會即時顯示格式化後的樣子）',
+    statusHint:'💡 Ctrl+B 粗體／Ctrl+I 斜體／Ctrl+K 連結，也可以直接點工具列按鈕。',
+    tableModalTitle:'插入表格',
+    tableModalRows:'資料列數（不含標題）', tableModalCols:'欄數', tableModalAlign:'欄位對齊',
+    tableAlignDefault:'預設（靠左）', tableAlignLeft:'靠左 :---', tableAlignCenter:'置中 :---:', tableAlignRight:'靠右 ---:',
+    tableCancelBtn:'取消', tableConfirmBtn:'插入',
+    countText:(w,c)=>`字數估計：${w}　字元：${c}`,
+    copiedFlash:'已複製 ✓',
+    confirmClear:'確定要清空目前的內容嗎？此動作無法復原。',
+    alertNoHeading:'目前文件裡沒有偵測到「# 標題」，先加一些標題再產生目錄吧。',
+    ph:{ bold:'粗體文字', italic:'斜體文字', boldItalic:'粗體加斜體文字', strike:'刪除線文字',
+      code:'在這裡輸入程式碼', link:'[連結文字](https://)', image:'![圖片說明](圖片網址)',
+      alignLeft:'靠左對齊的內容', alignCenter:'置中對齊的內容', alignRight:'靠右對齊的內容',
+      tableHeader:'標題', tableCell:'內容' }
+  },
+  en: {
+    docTitle:'Markdown Buddy · Format without the syntax',
+    brandTitle:'Markdown Buddy',
+    filenameLabel:'File name',
+    copyBtn:'Copy', copyBtnTitle:'Copy all raw Markdown',
+    clearBtn:'Clear', clearBtnTitle:'Clear current content',
+    importBtn:'Import .md', importBtnTitle:'Load an existing .md file',
+    exportBtn:'Export', exportBtnTitle:'Export current document',
+    exportMdOption:'Export .md', exportMdOptionTitle:'Download as a .md file',
+    exportPdfOption:'Export PDF', exportPdfOptionTitle:'Open the print dialog and choose "Save as PDF"',
+    themeBtn:'🌓 Theme', themeBtnTitle:'Toggle dark / light (defaults to browser preference)',
+    localeBtn:'🌐 Language', localeBtnTitle:'Switch interface language (中文／English)',
+    clearFormatLabel:'Clear format', clearFormatTitle:'Clear formatting: strip Markdown symbols from the selection (or whole document) and keep plain text',
+    h1Title:'Heading 1', h2Title:'Heading 2', h3Title:'Heading 3',
+    boldTitle:'Bold (Ctrl+B)', italicTitle:'Italic (Ctrl+I)',
+    boldItalicTitle:'Bold + Italic (the strongest standard Markdown emphasis)',
+    strikeTitle:'Strikethrough',
+    indentLabel:'→ Indent', indentTitle:'Increase indent',
+    outdentLabel:'← Outdent', outdentTitle:'Decrease indent',
+    alignLeftLabel:'⇤ Left', alignLeftTitle:'Align left (not standard Markdown — inserts an HTML <div align>, only rendered by HTML-aware viewers like GitHub)',
+    alignCenterLabel:'↔ Center', alignCenterTitle:'Align center (also uses an HTML div, not pure Markdown)',
+    alignRightLabel:'⇥ Right', alignRightTitle:'Align right (also uses an HTML div, not pure Markdown)',
+    quoteLabel:'❝ Quote', quoteTitle:'Blockquote',
+    codeTitle:'Code block',
+    ulLabel:'• List', ulTitle:'Bullet list',
+    olLabel:'1. Numbered', olTitle:'Numbered list',
+    todoLabel:'☑ To-do', todoTitle:'To-do list',
+    hrLabel:'─ Divider', hrTitle:'Insert a horizontal rule',
+    breakLabel:'↵ Line break', breakTitle:'Force a line break within a paragraph (Enter alone only starts a new paragraph)',
+    linkLabel:'🔗 Link', linkTitle:'Insert a link (Ctrl+K)',
+    imageLabel:'🖼 Image', imageTitle:'Insert an image',
+    tableLabel:'⌗ Table', tableTitle:'Insert a table',
+    tocLabel:'📑 TOC', tocTitle:'Generate a jump-to table of contents from the # headings in the document',
+    mobileTabEditor:'✍️ Draft', mobileTabPreview:'📖 Preview',
+    paneEditor:'Draft', panePreview:'Preview',
+    editorPlaceholder:'Start typing here…\n(the right side updates live as you format)',
+    statusHint:'💡 Ctrl+B bold / Ctrl+I italic / Ctrl+K link — or just click the toolbar buttons.',
+    tableModalTitle:'Insert Table',
+    tableModalRows:'Rows (excluding header)', tableModalCols:'Columns', tableModalAlign:'Column alignment',
+    tableAlignDefault:'Default (left)', tableAlignLeft:'Left :---', tableAlignCenter:'Center :---:', tableAlignRight:'Right ---:',
+    tableCancelBtn:'Cancel', tableConfirmBtn:'Insert',
+    countText:(w,c)=>`Words: ${w}　Characters: ${c}`,
+    copiedFlash:'Copied ✓',
+    confirmClear:'Clear the current content? This cannot be undone.',
+    alertNoHeading:'No "# heading" was found in the document — add some headings first, then generate a table of contents.',
+    ph:{ bold:'bold text', italic:'italic text', boldItalic:'bold italic text', strike:'strikethrough text',
+      code:'code goes here', link:'[link text](https://)', image:'![image caption](image url)',
+      alignLeft:'left-aligned content', alignCenter:'centered content', alignRight:'right-aligned content',
+      tableHeader:'Header', tableCell:'Cell' }
+  }
+};
+// language + theme are owned by the shared controller (assets/shared.js)
+// so a choice made in any tool carries over to the others.
+let lang = SharedSettings.getLang();
+function t(key){ return I18N[lang][key]; }
+
+function applyLocale(){
+  const dict = I18N[lang];
+  document.title = dict.docTitle;
+  root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if(dict[key] !== undefined) el.textContent = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.dataset.i18nTitle;
+    if(dict[key] !== undefined) el.title = dict[key];
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if(dict[key] !== undefined) el.placeholder = dict[key];
+  });
+  SharedSettings.paintHomeLinks(lang);
+  updateCount();
+}
+applyLocale();
+document.getElementById('localeToggle').addEventListener('click', () => {
+  lang = lang === 'zh' ? 'en' : 'zh';
+  SharedSettings.setLang(lang);
+  applyLocale();
+});
+
+// ================= theme =================
+let userOverride = SharedSettings.hasExplicitTheme();
+function applyTheme(theme){
+  root.setAttribute('data-theme', theme);
+  document.getElementById('hljs-theme').href = theme === 'dark'
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
+    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+}
+applyTheme(SharedSettings.getTheme());
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+});
+document.getElementById('themeToggle').addEventListener('click', () => {
+  userOverride = true;
+  const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  SharedSettings.setTheme(next);
+  applyTheme(next);
+});
+
+// ================= export dropdown =================
+const exportDropdown = document.getElementById('exportDropdown');
+const exportToggleBtn = document.getElementById('exportToggleBtn');
+const exportMenu = document.getElementById('exportMenu');
+exportToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = exportMenu.classList.toggle('open');
+  exportToggleBtn.setAttribute('aria-expanded', String(isOpen));
+});
+document.addEventListener('click', (e) => {
+  if(!exportDropdown.contains(e.target)){
+    exportMenu.classList.remove('open');
+    exportToggleBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+function closeExportMenu(){
+  exportMenu.classList.remove('open');
+  exportToggleBtn.setAttribute('aria-expanded', 'false');
+}
+
+// ================= core selection helpers =================
+function getSelData(){ return { start: ta.selectionStart, end: ta.selectionEnd, value: ta.value }; }
+function setSel(start,end){ ta.focus(); ta.setSelectionRange(start,end); }
+function onInput(){ updatePreview(); updateCount(); }
+
+// GitHub 風格的錨點命名規則：小寫、空白轉成 -、去除標點與 emoji
+function slugify(text){
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+    .replace(/\s+/g, '-');
+}
+
+function addHeadingAnchors(){
+  const counts = {};
+  preview.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+    let slug = slugify(h.textContent) || 'section';
+    if(counts[slug] !== undefined){
+      counts[slug]++;
+      slug = `${slug}-${counts[slug]}`;
+    } else {
+      counts[slug] = 0;
+    }
+    h.id = slug;
+  });
+}
+
+function updatePreview(){
+  const raw = marked.parse(ta.value || '');
+  preview.innerHTML = DOMPurify.sanitize(raw, { ADD_ATTR: ['align'] });
+  addHeadingAnchors();
+  preview.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+}
+
+// 點擊預覽內指向 #標題 的連結時，在預覽區內平滑捲動過去
+preview.addEventListener('click', e => {
+  const a = e.target.closest('a');
+  if(!a) return;
+  const href = a.getAttribute('href') || '';
+  if(href.startsWith('#')){
+    e.preventDefault();
+    const id = decodeURIComponent(href.slice(1));
+    const target = id ? preview.querySelector('#' + CSS.escape(id)) : null;
+    if(target) target.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+});
+function updateCount(){
+  const text = ta.value;
+  const words = (text.trim().match(/[\u4e00-\u9fff]|[A-Za-z]+[0-9]*/g) || []).length;
+  countEl.textContent = t('countText')(words, text.length);
+}
+
+function insertAtCursor(text){
+  const {start,end,value} = getSelData();
+  ta.value = value.slice(0,start) + text + value.slice(end);
+  const pos = start + text.length;
+  setSel(pos,pos);
+  onInput();
+}
+function wrapSelection(before, after, placeholder){
+  const {start,end,value} = getSelData();
+  const hasSel = start !== end;
+  const sel = hasSel ? value.slice(start,end) : placeholder;
+  ta.value = value.slice(0,start) + before + sel + after + value.slice(end);
+  const selStart = start + before.length;
+  const selEnd = selStart + sel.length;
+  setSel(selStart, selEnd);
+  onInput();
+}
+function transformLines(fn){
+  const {start,end,value} = getSelData();
+  let lineStart = value.lastIndexOf('\n', start-1) + 1;
+  let lineEnd = value.indexOf('\n', end);
+  if(lineEnd === -1) lineEnd = value.length;
+  const block = value.slice(lineStart, lineEnd);
+  const lines = block.split('\n');
+  const newLines = fn(lines);
+  const newBlock = newLines.join('\n');
+  ta.value = value.slice(0,lineStart) + newBlock + value.slice(lineEnd);
+  setSel(lineStart, lineStart + newBlock.length);
+  onInput();
+}
+
+// ================= formatting actions =================
+function setHeading(level){
+  const prefix = '#'.repeat(level) + ' ';
+  transformLines(lines => {
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const allHave = nonEmpty.length > 0 && nonEmpty.every(l => l.startsWith(prefix));
+    return lines.map(l => {
+      if(l.trim() === '') return l;
+      const stripped = l.replace(/^#{1,6}\s*/, '');
+      return allHave ? stripped : prefix + stripped;
+    });
+  });
+}
+function toggleQuote(){
+  transformLines(lines => {
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const allHave = nonEmpty.length > 0 && nonEmpty.every(l => l.startsWith('> '));
+    return lines.map(l => l.trim() === '' ? l : (allHave ? l.replace(/^> ?/, '') : '> ' + l));
+  });
+}
+function toggleUL(){
+  transformLines(lines => {
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const allHave = nonEmpty.length > 0 && nonEmpty.every(l => /^\s*-\s/.test(l));
+    return lines.map(l => l.trim() === '' ? l : (allHave ? l.replace(/^(\s*)-\s/, '$1') : l.replace(/^(\s*)/, '$1- ')));
+  });
+}
+function toggleOL(){
+  transformLines(lines => {
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const allHave = nonEmpty.length > 0 && nonEmpty.every(l => /^\s*\d+\.\s/.test(l));
+    if(allHave) return lines.map(l => l.replace(/^(\s*)\d+\.\s/, '$1'));
+    let n = 1;
+    return lines.map(l => {
+      if(l.trim() === '') return l;
+      const indent = (l.match(/^(\s*)/) || ['',''])[1];
+      const out = `${indent}${n}. ${l.replace(/^\s*/, '')}`;
+      n++;
+      return out;
+    });
+  });
+}
+function toggleTodo(){
+  transformLines(lines => {
+    const nonEmpty = lines.filter(l => l.trim() !== '');
+    const allHave = nonEmpty.length > 0 && nonEmpty.every(l => /^\s*-\s\[[ x]\]\s/.test(l));
+    return lines.map(l => l.trim() === '' ? l : (allHave ? l.replace(/^(\s*)-\s\[[ x]\]\s/, '$1') : l.replace(/^(\s*)/, '$1- [ ] ')));
+  });
+}
+function indentLines(){ transformLines(lines => lines.map(l => l.length ? '  ' + l : l)); }
+function outdentLines(){ transformLines(lines => lines.map(l => l.replace(/^ {1,2}/, ''))); }
+
+function generateTOC(){
+  const lines = ta.value.split('\n');
+  const counts = {};
+  const items = [];
+  lines.forEach(line => {
+    const m = line.match(/^(#{1,6})\s+(.*)/);
+    if(!m) return;
+    const level = m[1].length;
+    const text = m[2].trim();
+    let slug = slugify(text) || 'section';
+    if(counts[slug] !== undefined){
+      counts[slug]++;
+      slug = `${slug}-${counts[slug]}`;
+    } else {
+      counts[slug] = 0;
+    }
+    items.push(`${'  '.repeat(level - 1)}- [${text}](#${slug})`);
+  });
+  if(items.length === 0){
+    alert(t('alertNoHeading'));
+    return;
+  }
+  insertAtCursor('\n' + items.join('\n') + '\n');
+}
+
+function insertAlign(align, placeholder){
+  const {start,end,value} = getSelData();
+  const hasSel = start !== end;
+  const sel = hasSel ? value.slice(start,end) : placeholder;
+  const wrapped = `<div align="${align}">\n\n${sel}\n\n</div>`;
+  ta.value = value.slice(0,start) + wrapped + value.slice(end);
+  const contentStart = start + wrapped.indexOf(sel);
+  setSel(contentStart, contentStart + sel.length);
+  onInput();
+}
+
+function buildTable(rows, cols, align){
+  const sepCell = align === 'center' ? ':---:' : align === 'right' ? '---:' : align === 'left' ? ':---' : '---';
+  const header = '| ' + Array.from({length:cols}, (_,i) => `${t('ph').tableHeader}${i+1}`).join(' | ') + ' |';
+  const sep = '| ' + Array.from({length:cols}, () => sepCell).join(' | ') + ' |';
+  const body = Array.from({length:rows}, () => '| ' + Array.from({length:cols}, () => t('ph').tableCell).join(' | ') + ' |');
+  return '\n' + [header, sep, ...body].join('\n') + '\n';
+}
+
+// ---- 清除格式 ----
+function stripMarkdown(text){
+  return text
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/```[a-zA-Z0-9]*\n?/g, '').replace(/```/g, '')
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')
+    .replace(/___([^_]+)___/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/~~([^~]+)~~/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*([^*\n]+)\*/g, '$1')
+    .replace(/(^|[^\w])_([^_\n]+)_(?!\w)/g, '$1$2')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/^(\s*)[-*+]\s\[[ xX]\]\s+/gm, '$1')
+    .replace(/^(\s*)[-*+]\s+/gm, '$1')
+    .replace(/^(\s*)\d+\.\s+/gm, '$1')
+    .replace(/^\s*([-*_])(\s*\1){2,}\s*$/gm, '');
+}
+function clearFormat(){
+  const {start,end,value} = getSelData();
+  if(start === end){
+    const cleaned = stripMarkdown(value);
+    ta.value = cleaned;
+    setSel(0, cleaned.length);
+  } else {
+    const cleaned = stripMarkdown(value.slice(start,end));
+    ta.value = value.slice(0,start) + cleaned + value.slice(end);
+    setSel(start, start + cleaned.length);
+  }
+  onInput();
+}
+
+// ================= toolbar dispatch =================
+document.getElementById('toolbar').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if(!btn) return;
+  const action = btn.dataset.action;
+  const actions = {
+    h1: () => setHeading(1), h2: () => setHeading(2), h3: () => setHeading(3),
+    bold: () => wrapSelection('**','**',t('ph').bold),
+    italic: () => wrapSelection('*','*',t('ph').italic),
+    boldItalic: () => wrapSelection('***','***',t('ph').boldItalic),
+    strike: () => wrapSelection('~~','~~',t('ph').strike),
+    quote: toggleQuote,
+    code: () => wrapSelection('\n```\n','\n```\n',t('ph').code),
+    ul: toggleUL, ol: toggleOL, todo: toggleTodo,
+    indent: indentLines, outdent: outdentLines,
+    link: () => insertAtCursor(t('ph').link),
+    image: () => insertAtCursor(t('ph').image),
+    hr: () => insertAtCursor('\n\n---\n\n'),
+    break: () => insertAtCursor('  \n'),
+    alignLeft: () => insertAlign('left', t('ph').alignLeft),
+    alignCenter: () => insertAlign('center', t('ph').alignCenter),
+    alignRight: () => insertAlign('right', t('ph').alignRight),
+    table: openTableModal,
+    toc: generateTOC,
+    clearFormat: clearFormat,
+  };
+  (actions[action] || (()=>{}))();
+});
+
+// keyboard shortcuts
+ta.addEventListener('keydown', e => {
+  const mod = e.ctrlKey || e.metaKey;
+  if(!mod) return;
+  const k = e.key.toLowerCase();
+  if(k === 'b'){ e.preventDefault(); wrapSelection('**','**',t('ph').bold); }
+  else if(k === 'i'){ e.preventDefault(); wrapSelection('*','*',t('ph').italic); }
+  else if(k === 'k'){ e.preventDefault(); insertAtCursor(t('ph').link); }
+});
+
+// ================= table modal =================
+const tableModal = document.getElementById('tableModal');
+function openTableModal(){ tableModal.classList.add('open'); }
+function closeTableModal(){ tableModal.classList.remove('open'); }
+document.getElementById('tableCancel').addEventListener('click', closeTableModal);
+document.getElementById('tableConfirm').addEventListener('click', () => {
+  const rows = Math.max(1, Math.min(20, parseInt(document.getElementById('tableRows').value) || 3));
+  const cols = Math.max(1, Math.min(10, parseInt(document.getElementById('tableCols').value) || 3));
+  const align = document.getElementById('tableAlign').value;
+  insertAtCursor(buildTable(rows, cols, align));
+  closeTableModal();
+});
+tableModal.addEventListener('click', e => { if(e.target === tableModal) closeTableModal(); });
+
+// ================= mobile tabs =================
+document.querySelectorAll('.tabbtn').forEach(tb => {
+  tb.addEventListener('click', () => {
+    document.querySelectorAll('.tabbtn').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.pane').forEach(x => x.classList.remove('active'));
+    tb.classList.add('active');
+    document.getElementById(tb.dataset.pane).classList.add('active');
+  });
+});
+
+// ================= import / export / copy =================
+document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importInput').click());
+document.getElementById('importInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { ta.value = reader.result; onInput(); };
+  reader.readAsText(file);
+  const base = file.name.replace(/\.(md|markdown|txt)$/i, '');
+  if(base) filenameInput.value = base;
+});
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if(ta.value.trim() === '' || confirm(t('confirmClear'))){
+    ta.value = '';
+    onInput();
+  }
+});
+
+function flashButton(btn, text){
+  const original = btn.textContent;
+  btn.textContent = text;
+  setTimeout(() => { btn.textContent = original; }, 1200);
+}
+
+document.getElementById('copyBtn').addEventListener('click', async (e) => {
+  try{
+    await navigator.clipboard.writeText(ta.value);
+    flashButton(e.currentTarget, t('copiedFlash'));
+  }catch(err){
+    ta.select();
+    document.execCommand('copy');
+    flashButton(e.currentTarget, t('copiedFlash'));
+  }
+});
+
+document.getElementById('exportMdBtn').addEventListener('click', () => {
+  const name = (filenameInput.value.trim() || '我的文件') + '.md';
+  const blob = new Blob([ta.value], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  a.remove(); URL.revokeObjectURL(url);
+  closeExportMenu();
+});
+
+document.getElementById('exportPdfBtn').addEventListener('click', () => {
+  const name = filenameInput.value.trim() || '我的文件';
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${name}</title>
+  <style>
+    body{font-family:-apple-system,"Segoe UI","Noto Sans TC",Arial,sans-serif; padding:48px; color:#1f2328; line-height:1.75; max-width:780px; margin:0 auto;}
+    h1,h2{border-bottom:1px solid #d0d7de; padding-bottom:6px;}
+    table{border-collapse:collapse; width:100%; margin:16px 0;}
+    th,td{border:1px solid #d0d7de; padding:6px 12px;}
+    th{background:#f6f8fa;}
+    pre{background:#f6f8fa; border:1px solid #d0d7de; padding:14px 16px; border-radius:6px; overflow-x:auto;}
+    code{font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",monospace;}
+    pre code{background:none;}
+    blockquote{border-left:3px solid #d0d7de; margin:0 0 1em; padding:2px 14px; color:#656d76;}
+    img{max-width:100%;}
+    @media print{ body{padding:0;} }
+  </style></head><body>${preview.innerHTML}</body></html>`;
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0'; iframe.style.bottom = '0';
+  iframe.style.width = '0'; iframe.style.height = '0'; iframe.style.border = '0';
+  document.body.appendChild(iframe);
+  iframe.srcdoc = html;
+  iframe.onload = () => {
+    setTimeout(() => {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+      setTimeout(() => document.body.removeChild(iframe), 1000);
+    }, 300);
+  };
+  closeExportMenu();
+});
+
+// ================= init =================
+ta.value = `# 我的第一份文件
+
+歡迎使用格式小幫手！這是一段**粗體**、*斜體*，還有***粗體加斜體***的範例。
+
+- 這是項目符號清單
+- 用「→ 縮排」按鈕可以做出下一層清單
+  - 像這樣
+
+> 這是一段引用文字，適合放重點提示。
+
+\`\`\`js
+const hello = "world";
+console.log(hello);
+\`\`\`
+
+用「⌗ 表格」按鈕可以快速插入表格；用「↵ 強制換行」可以在同一段落內換行，
+而不是像這樣被合併成一行。想把格式全部拿掉，選取文字後按「🧹 清除格式」即可。`;
+
+ta.addEventListener('input', onInput);
+onInput();
+</script>
+</body>
+</html>

@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>圖片編輯器 · 純瀏覽器圖片編輯</title>
+<script src="../../assets/shared.js"></script>
+<style>
+  :root{
+    --bg: #14161a;
+    --bg-panel: #1b1e24;
+    --bg-raised: #23262e;
+    --line: #2e323b;
+    --ink: #eceae6;
+    --ink-dim: #9aa0ab;
+    --teal: #4fd1c5;
+    --teal-dim: #2d7e77;
+    --amber: #e8a33d;
+    --moon: #9db4ea;
+    --danger: #e2685f;
+    --radius: 10px;
+    font-size: 16px;
+  }
+  html.light-theme{
+    --bg: #f4f5f7;
+    --bg-panel: #ffffff;
+    --bg-raised: #eceef2;
+    --line: #dcdfe5;
+    --ink: #1c1e22;
+    --ink-dim: #6b7280;
+    --teal: #1f9d90;
+    --teal-dim: #bfe9e4;
+    --amber: #b5741a;
+    --moon: #3b4fa0;
+    --danger: #c0392b;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);width:100%;overflow-x:hidden;
+    font-family: "Inter","Helvetica Neue",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+    -webkit-font-smoothing:antialiased; transition:background-color .15s, color .15s;}
+  .mono{font-family:"SFMono-Regular","Menlo","Consolas",monospace; letter-spacing:.02em;}
+
+  body.drag-active::after{
+    content:"放開滑鼠以載入檔案"; position:fixed; inset:0; z-index:999;
+    background:rgba(20,22,26,.85); color:var(--teal); font-size:22px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; border:3px dashed var(--teal); pointer-events:none;
+  }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 16px 24px; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, var(--bg-panel), var(--bg));
+    flex-wrap:wrap; gap:12px;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand .mark{
+    width:34px; height:34px; border-radius:8px;
+    background: repeating-conic-gradient(#2a2d34 0% 25%, #1b1e24 0% 50%) 50%/10px 10px;
+    border:1px solid var(--line); position:relative; overflow:hidden;
+  }
+  .brand .mark::after{
+    content:""; position:absolute; inset:6px; border-radius:4px;
+    background: radial-gradient(circle at 35% 30%, var(--teal), var(--teal-dim) 70%);
+  }
+  .brand h1{font-size:16px; margin:0; font-weight:600; letter-spacing:.01em;}
+  .brand p{margin:2px 0 0; font-size:12px; color:var(--ink-dim);}
+
+  nav.tabs{display:flex; gap:4px; background:var(--bg-raised); padding:4px; border-radius:999px; border:1px solid var(--line); flex:0 0 auto;}
+  nav.tabs button{
+    appearance:none; border:none; background:transparent; color:var(--ink-dim);
+    font-size:13px; font-weight:600; padding:9px 18px; border-radius:999px; cursor:pointer;
+    transition:.15s; letter-spacing:.01em; white-space:nowrap;
+  }
+  nav.tabs button.active{background:var(--teal); color:#0c1210;}
+  nav.tabs button:not(.active):hover{color:var(--ink); background:var(--bg-panel);}
+
+  .header-tools{display:flex; align-items:center; gap:8px;}
+  .icon-toggle{
+    appearance:none; border:1px solid var(--line); background:var(--bg-raised); color:var(--ink);
+    font-size:12px; font-weight:600; padding:8px 14px; border-radius:999px; cursor:pointer; transition:.15s;
+  }
+  .icon-toggle:hover{border-color:var(--teal-dim); color:var(--teal);}
+  .icon-toggle{display:inline-flex; align-items:center; gap:6px;}
+  .theme-icon{display:inline-flex; width:14px; height:14px; flex:0 0 auto;}
+  .theme-icon svg{width:100%; height:100%; display:block;}
+  .theme-icon svg path{fill:currentColor;}
+  .theme-icon.icon-sun{color:var(--amber);}
+  .theme-icon.icon-moon{color:var(--moon);}
+
+  .action-bar{
+    display:flex; align-items:center; flex-wrap:wrap; gap:16px;
+    padding:12px 24px; border-bottom:1px solid var(--line); background:var(--bg-panel);
+  }
+  .action-bar-content{display:flex; align-items:center; justify-content:space-between; flex:1 1 auto; flex-wrap:wrap; gap:12px; min-width:0;}
+  .action-left, .action-right{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .action-right progress{width:140px;}
+  .action-right #anim-download-area{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .action-right #anim-download-area a{display:inline-block; text-decoration:none;}
+
+  .bg-preview-row{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .bg-swatch{
+    width:22px; height:22px; border-radius:6px; border:2px solid var(--line); cursor:pointer; padding:0;
+    background-image:
+      linear-gradient(45deg, #888 25%, transparent 25%), linear-gradient(-45deg, #888 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #888 75%), linear-gradient(-45deg, transparent 75%, #888 75%);
+    background-size:8px 8px; background-position:0 0, 0 4px, 4px -4px, -4px 0px; background-color:#ccc;
+  }
+  .bg-swatch.active{border-color:var(--teal);}
+  .bg-swatch[data-bgval="#ffffff"]{background-image:none; background-color:#fff;}
+  .bg-swatch[data-bgval="#000000"]{background-image:none; background-color:#000;}
+  input[type=color].bg-custom{width:26px; height:26px; padding:0; border:2px solid var(--line); border-radius:6px; background:none; cursor:pointer;}
+
+  main{padding:20px 24px 60px; max-width:1200px; margin:0 auto; min-width:0;}
+  .workspace{display:grid; grid-template-columns: minmax(0,300px) minmax(0,1fr); gap:18px; align-items:start; min-width:0;}
+  @media (max-width: 880px){ .workspace{grid-template-columns:minmax(0,1fr);} }
+
+  .sidebar{display:flex; flex-direction:column; gap:12px; min-width:0;}
+
+  .tool-toolbar{display:flex; gap:4px; background:var(--bg-panel); border:1px solid var(--line); border-radius:10px; padding:5px; flex-wrap:wrap;}
+  .tool-toolbar button{
+    appearance:none; border:none; background:transparent; color:var(--ink-dim);
+    font-size:12px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer; flex:1 1 auto; min-width:64px;
+    transition:.15s; white-space:nowrap;
+  }
+  .tool-toolbar button.active{background:var(--teal); color:#0c1210;}
+  .tool-toolbar button:not(.active):hover{color:var(--ink); background:var(--bg-raised);}
+
+  .panel{
+    background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:14px; display:flex; flex-direction:column; gap:12px; min-width:0;
+  }
+  .panel h2{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-dim); margin:0;
+    display:flex; align-items:center; gap:6px;}
+  .panel h2 .tag{background:var(--bg-raised); color:var(--teal); font-size:10px; padding:2px 6px; border-radius:4px; letter-spacing:0; text-transform:none;}
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field label{font-size:12px; color:var(--ink); display:flex; justify-content:space-between;}
+  .field label span.val{color:var(--teal); font-family:monospace;}
+  input[type=range]{-webkit-appearance:none; width:100%; height:4px; border-radius:2px; background:var(--line); outline:none;}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:15px; height:15px; border-radius:50%; background:var(--teal);
+    border:2px solid #0c1210; cursor:pointer; margin-top:-1px;
+  }
+  input[type=number], input[type=text]{
+    background:var(--bg-raised); border:1px solid var(--line); color:var(--ink);
+    border-radius:6px; padding:7px 9px; font-size:12px; width:100%;
+  }
+  select{background:var(--bg-raised); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:7px 9px; font-size:12px; width:100%;}
+  .row{display:flex; gap:8px;}
+  .row > *{flex:1; min-width:0;}
+  .checkbox-row{display:flex; align-items:center; gap:8px; font-size:12px;}
+  .checkbox-row input{width:16px; height:16px; accent-color:var(--teal); flex:0 0 auto;}
+
+  button.btn{
+    appearance:none; border:1px solid var(--line); background:var(--bg-raised); color:var(--ink);
+    padding:9px 12px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; transition:.15s;
+  }
+  button.btn:hover{border-color:var(--teal-dim); color:var(--teal);}
+  button.btn.primary{background:var(--teal); color:#0c1210; border-color:var(--teal);}
+  button.btn.primary:hover{filter:brightness(1.08); color:#0c1210;}
+  button.btn.ghost{background:transparent;}
+  button.btn:disabled{opacity:.4; cursor:not-allowed;}
+  button.btn:disabled:hover{border-color:var(--line); color:var(--ink);}
+  .btn-row{display:flex; gap:6px; flex-wrap:wrap;}
+
+  .hint{font-size:11px; color:var(--ink-dim); line-height:1.6; margin:0;}
+  .divider{height:1px; background:var(--line); margin:2px 0;}
+
+  .stage{background:var(--bg-panel); border:1px solid var(--line); border-radius:var(--radius); display:flex; flex-direction:column; min-height:520px; min-width:0;}
+  .stage-toolbar{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding:10px 14px; border-bottom:1px solid var(--line); font-size:12px; color:var(--ink-dim);}
+  .stage-toolbar .dims{font-family:monospace; color:var(--ink);}
+  .crop-overlay{position:absolute; z-index:5; overflow:hidden; display:none;}
+  .crop-box{position:absolute; border:2px solid var(--teal); box-sizing:border-box; cursor:move; box-shadow:0 0 0 999px rgba(0,0,0,.55);}
+  .crop-handle{position:absolute; width:14px; height:14px; background:var(--teal); border:2px solid #0c1210; border-radius:3px; z-index:6;}
+  .crop-handle.nw{left:-8px; top:-8px; cursor:nwse-resize;}
+  .crop-handle.ne{right:-8px; top:-8px; cursor:nesw-resize;}
+  .crop-handle.sw{left:-8px; bottom:-8px; cursor:nesw-resize;}
+  .crop-handle.se{right:-8px; bottom:-8px; cursor:nwse-resize;}
+
+  .canvas-wrap{
+    flex:1; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; min-width:0; min-height:360px;
+    background-image:
+      linear-gradient(45deg, #22242a 25%, transparent 25%),
+      linear-gradient(-45deg, #22242a 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #22242a 75%),
+      linear-gradient(-45deg, transparent 75%, #22242a 75%);
+    background-size:20px 20px; background-position:0 0, 0 10px, 10px -10px, -10px 0px; background-color:#1a1c21;
+  }
+  canvas{max-width:100%; max-height:52vh; border-radius:4px; box-shadow:0 8px 30px rgba(0,0,0,.4);}
+  #svg-preview-img{max-width:100%; max-height:52vh; border-radius:4px; box-shadow:0 8px 30px rgba(0,0,0,.4);}
+  .drop-empty{text-align:center; color:var(--ink-dim); font-size:13px; padding:36px; cursor:pointer; border:1.5px dashed var(--line); border-radius:12px; width:100%; max-width:480px;}
+  .drop-empty:hover{border-color:var(--teal-dim); color:var(--ink);}
+  .drop-empty .big{font-size:28px; margin-bottom:8px;}
+  .eyedrop-cursor{cursor: crosshair !important;}
+
+  .swatch{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:8px; background:var(--bg-raised); border:1px solid var(--line); font-size:11px; font-family:monospace;}
+  .swatch .dot{width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.2); flex:0 0 auto;}
+
+  progress{width:100%; height:8px; border-radius:4px; overflow:hidden; accent-color:var(--teal);}
+
+  #video-preview{width:100%; max-height:200px; border-radius:6px; background:#000; display:block;}
+  #video-preview-area{display:flex; flex-direction:column; gap:8px;}
+
+  .frame-strip{display:flex; gap:8px; overflow-x:auto; padding:10px 14px; border-top:1px solid var(--line); min-width:0;}
+  .frame-card{display:flex; flex-direction:column; align-items:center; gap:4px; background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:6px; padding:5px; flex:0 0 auto;}
+  .frame-card.active{border-color:var(--teal);}
+  .frame-card canvas{width:52px; height:52px; object-fit:cover; max-height:52px; border-radius:3px; cursor:pointer; box-shadow:none;}
+  .frame-card input[type=number]{width:52px; font-size:10px; padding:3px; text-align:center;}
+  .frame-actions{display:flex; gap:3px;}
+  .frame-actions button{font-size:10px; padding:3px 5px; border-radius:4px; border:1px solid var(--line); background:var(--bg-panel); color:var(--ink-dim); cursor:pointer;}
+  .frame-actions button:hover{color:var(--teal); border-color:var(--teal-dim);}
+  .frame-actions button.danger:hover{color:var(--danger); border-color:var(--danger);}
+
+  footer{text-align:center; padding:30px; color:var(--ink-dim); font-size:12px;}
+  a{color:var(--teal);}
+  .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bg-raised); border:1px solid var(--line); color:var(--ink-dim);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="mark"></div>
+    <div>
+      <h1 data-en="Image Editor">圖片編輯器</h1>
+      <p data-en="Runs entirely in your browser · No server needed · Drag files anywhere on the page to load">純瀏覽器運作 · 不需伺服器 · 拖曳檔案到頁面任何地方即可載入</p>
+    </div>
+  </div>
+  <div class="header-tools">
+    <a class="icon-toggle" id="homeBtn" href="../../index.html" data-se-home style="text-decoration:none;">🏠 回首頁</a>
+    <button class="icon-toggle" id="btn-lang-toggle" title="Switch language / 切換語言">EN</button>
+    <button class="icon-toggle" id="btn-theme-toggle" title="切換亮 / 暗主題"><span class="theme-icon icon-sun" id="theme-toggle-icon"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="m50.44 3c0.54 0 2.52 3.26 4.42 7.25 1.89 3.99 3.6 7.36 3.79 7.5 0.19 0.14 3.61-1.78 14.85-8.79l0.5 17.04 16.8 0.5-8.71 15 7.44 4c4.09 2.2 7.44 4.23 7.45 4.5 0 0.27-3.14 2.19-6.99 4.25-3.84 2.06-6.97 4.31-6.95 5 0.02 0.69 1.78 4.17 7.79 14.25l-16.83 0.5-0.5 16.8-15-8.71-4 7.44c-2.2 4.09-4.23 7.44-4.5 7.45-0.27 0.01-2.3-3.34-8.5-14.89l-15 8.86-0.5-16.95-16.95-0.5 8.86-15-7.45-4c-4.1-2.2-7.45-4.23-7.44-4.5 0.01-0.27 3.36-2.3 14.91-8.5l-8.88-15 16.95-0.5 0.5-16.93 15 8.74 3.99-7.4c2.19-4.08 4.42-7.41 4.95-7.41zm-8.19 18c-0.41 0-3.34-1.58-6.5-3.5-3.16-1.93-5.97-3.5-6.25-3.5-0.27 0-0.5 3.38-0.5 7.5v7.5l-15 0.5c5.43 8.91 7 11.95 7 12.5 0 0.55-2.7 2.35-6 4-3.3 1.65-6 3.45-6 4 0 0.55 2.7 2.35 6 4 3.3 1.65 6 3.45 6 4 0 0.55-1.57 3.59-3.5 6.75l-3.5 5.75 15 0.5v15c9.69-5.39 12.84-6.96 13.25-6.98 0.41-0.01 2.1 2.68 3.75 5.98 1.65 3.3 3.34 6.02 3.75 6.04 0.41 0.02 2.21-2.68 4-6 1.79-3.32 3.59-6.03 4-6.02 0.41 0.02 3.56 1.59 7 3.5l6.25 3.48v-15h15c-6.47-12.1-6.94-13.66-5.86-14.29 0.75-0.43 3.5-1.9 6.11-3.25 2.61-1.35 4.75-2.91 4.75-3.46 0-0.55-2.7-2.35-6-4-3.3-1.65-6-3.23-6-3.5 0-0.27 1.58-3.42 3.5-7l3.5-6.5h-15l-0.5-15c-8.91 5.43-11.84 7.02-12.25 7.04-0.41 0.02-2.21-2.68-4-6-1.79-3.32-3.69-6.04-4.24-6.04-0.54 0-2.34 2.7-4 6-1.65 3.3-3.35 6-3.76 6zm5.25-2c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.83 0-1.5-0.45-1.5-1 0-0.55 0.67-1 1.5-1zm5 0c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.83 0-1.5-0.45-1.5-1 0-0.55 0.67-1 1.5-1zm-15.5 3c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm26 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-30 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1.23-1 1.5-0.55 0.27-1-0.18-1-1 0-0.83 0.45-1.5 1-1.5zm18.5 0.37c3.96 0.17 8.41 1.03 10.25 1.97 1.79 0.91 4.83 3.23 6.75 5.16 1.92 1.92 4.28 4.96 5.24 6.75 1.27 2.36 1.74 5.58 1.74 11.75 0 6.17-0.47 9.39-1.74 11.75-0.96 1.79-3.32 4.83-5.24 6.75-1.92 1.92-4.96 4.28-6.75 5.24-2.36 1.27-5.58 1.74-11.75 1.74-6.17 0-9.39-0.47-11.75-1.74-1.79-0.96-4.83-3.32-6.75-5.24-1.92-1.92-4.23-4.96-5.11-6.75-0.89-1.79-1.85-5.28-2.13-7.75-0.29-2.48-0.24-6.53 0.1-9 0.34-2.48 1.93-6.53 3.53-9 1.6-2.48 4.64-5.74 6.76-7.25 2.12-1.51 5.2-3.18 6.85-3.72 1.65-0.54 6.15-0.84 10-0.66zm-18 9.13c-3.36 3.36-4.91 5.96-6.12 10.25-1.32 4.68-1.42 6.68-0.52 10.75 0.6 2.75 2.37 6.8 3.92 9 1.55 2.2 4.37 4.99 6.27 6.2 1.9 1.2 5.7 2.72 8.45 3.37 4.17 0.99 5.95 0.92 10.75-0.44 4.28-1.21 6.9-2.78 10.25-6.13 3.36-3.36 4.91-5.96 6.12-10.25 1.4-4.96 1.45-6.5 0.33-11.25-0.72-3.04-2.68-7.26-4.38-9.44-1.69-2.16-5.09-4.97-7.57-6.24-2.47-1.27-6.52-2.53-9-2.8-2.58-0.28-6.53 0.15-9.25 1-3.05 0.95-6.36 3.09-9.25 5.98zm33.5-9.5c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.27-1 1-0.55-0.28-1-0.95-1-1.5 0-0.55 0.45-1 1-1zm-41.71 8c0.71 0 1.16 0.45 1 1-0.16 0.55-0.74 1-1.29 1-0.55 0-1-0.45-1-1 0-0.55 0.58-1 1.29-1zm49.11 0c0.88 0 1.6 0.45 1.6 1 0 0.55-0.45 1-1 1-0.55 0-1.27-0.45-1.6-1-0.33-0.55 0.12-1 1-1zm-51.4 4c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm54 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-57 10c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm60 0c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm-60 5c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm60 0c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm-57.6 11c0.88 0 1.6 0.45 1.6 1 0 0.55-0.45 1-1 1-0.55 0-1.27-0.45-1.6-1-0.33-0.55 0.12-1 1-1zm54.6 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-52 4c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm50.05 0c0.52 0 0.96 0.34 0.98 0.75 0.01 0.41-0.32 1.08-0.75 1.48-0.43 0.4-1.12 0.51-1.53 0.25-0.41-0.27-0.5-0.93-0.2-1.48 0.3-0.55 0.98-1 1.5-1zm-41.59 7.9c0.57 0.58 0.7 1.3 0.29 1.58-0.41 0.29-1.2 0.3-1.75 0.02-0.55-0.28-0.68-0.99-0.29-1.59 0.51-0.77 1.01-0.77 1.75-0.01zm33.54 0.1c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-30 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm26 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1.22-1 1.5-0.55 0.28-1-0.18-1-1 0-0.83 0.45-1.5 1-1.5zm-15.5 3c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1zm5 0c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1z"/></svg></span><span id="theme-toggle-label">亮色</span></button>
+  </div>
+</header>
+
+<div class="action-bar">
+  <nav class="tabs" id="tabnav">
+    <button data-tab="static" class="active" data-en="Static Images">靜態圖片</button>
+    <button data-tab="anim" data-en="Animated">動態圖片</button>
+  </nav>
+
+  <div class="action-bar-content" id="action-bar-static">
+    <div class="action-left">
+      <button class="btn primary" id="btn-load" data-en="📂 Load Image">📂 載入圖片</button>
+      <button class="btn ghost" id="btn-paste" data-en="📋 Paste Image">📋 貼上圖片</button>
+      <button class="btn ghost" id="btn-reset-all" data-en="Reset to Original">重設為原圖</button>
+      <span class="hint mono" id="src-name">尚未載入圖片</span>
+      <input type="file" id="file-input" accept="image/*" style="display:none;">
+    </div>
+    <div class="action-right">
+      <button class="btn primary" id="btn-download" data-en="⬇ Download PNG">⬇ 下載 PNG</button>
+    </div>
+  </div>
+
+  <div class="action-bar-content" id="action-bar-anim" style="display:none;">
+    <div class="action-left">
+      <button class="btn primary" id="btn-load-anim" data-en="📂 Load GIF / APNG">📂 載入 GIF / APNG</button>
+      <span class="hint mono" id="anim-info">尚未載入</span>
+      <input type="file" id="anim-file-input" accept="image/gif,image/png" style="display:none;">
+    </div>
+    <div class="action-right">
+      <div class="checkbox-row">
+        <input type="checkbox" id="auto-download-anim" checked>
+        <label for="auto-download-anim" data-en="Auto-download to default location">自動下載到預設位置</label>
+      </div>
+      <button class="btn primary" id="btn-render-anim" data-en="⬇ Render and Download">⬇ 輸出並下載</button>
+      <progress id="anim-progress" value="0" max="1" style="display:none;"></progress>
+      <div id="anim-download-area"></div>
+    </div>
+  </div>
+</div>
+
+<main>
+
+  <!-- ============ STATIC ============ -->
+  <div id="wrap-static" class="workspace">
+    <div class="sidebar">
+
+      <div class="checkbox-row" style="padding:2px 2px 0;">
+        <input type="checkbox" id="live-apply" checked>
+        <label for="live-apply" data-en="Live apply (auto-apply on release, no need to click Apply)">⚡ 即時套用（放開滑桿自動套用，不用再按套用）</label>
+      </div>
+
+      <div class="tool-toolbar" id="static-toolbar">
+        <button data-tool="remove" class="active" data-en="Remove BG">去背</button>
+        <button data-tool="resize" data-en="Resize">縮放</button>
+        <button data-tool="crop" data-en="Crop">裁切</button>
+        <button data-tool="color" data-en="Color">調色</button>
+        <button data-tool="svg" data-en="To SVG">轉 SVG</button>
+      </div>
+
+      <div class="panel" id="panel-remove">
+        <h2 data-en="Remove Background (Chroma Key)">去背（色彩去背）</h2>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-eyedrop">🎯 選取顏色</button>
+          <button class="btn ghost" id="btn-clear-pick">清除選色</button>
+        </div>
+        <div id="picked-swatch" class="swatch" style="display:none;">
+          <span class="dot" id="picked-dot"></span><span id="picked-text">尚未選取</span>
+        </div>
+        <div class="field"><label>容許度 <span class="val" id="val-tol">40</span></label><input type="range" id="tol" min="1" max="100" value="40"></div>
+        <div class="field"><label>邊緣羽化 <span class="val" id="val-feather">18</span></label><input type="range" id="feather" min="0" max="100" value="18"></div>
+        <div class="checkbox-row"><input type="checkbox" id="spill" checked><label for="spill">修正邊緣色溢</label></div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-apply-remove">套用這次去背</button>
+          <button class="btn ghost" id="btn-undo-remove">還原上一步</button>
+        </div>
+        <p class="hint" id="pass-count-hint">尚未套用任何去背。</p>
+      </div>
+
+      <div class="panel" id="panel-resize" style="display:none;">
+        <h2 data-en="Resize (Preserve Quality)">縮放（維持畫質）</h2>
+        <div class="row">
+          <div class="field"><label>寬度 (px)</label><input type="number" id="resize-w" min="1"></div>
+          <div class="field"><label>高度 (px)</label><input type="number" id="resize-h" min="1"></div>
+        </div>
+        <div class="checkbox-row"><input type="checkbox" id="lock-ratio" checked><label for="lock-ratio">鎖定長寬比</label></div>
+        <div class="field"><label>依百分比縮放 <span class="val" id="val-pct">100%</span></label><input type="range" id="resize-pct" min="1" max="400" value="100"></div>
+        <div class="field">
+          <label>演算法</label>
+          <select id="resize-mode">
+            <option value="hq">高品質（逐步縮小）</option>
+            <option value="fast">標準（單次縮放）</option>
+          </select>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-apply-resize">套用縮放</button>
+          <button class="btn ghost" id="btn-undo-resize">還原上一步</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-crop" style="display:none;">
+        <h2 data-en="Crop">裁切</h2>
+        <div class="field">
+          <label>比例</label>
+          <select id="crop-ratio">
+            <option value="free">自由</option>
+            <option value="1:1">1:1 正方形</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field"><label>X</label><input type="number" id="crop-x" min="0"></div>
+          <div class="field"><label>Y</label><input type="number" id="crop-y" min="0"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>寬度</label><input type="number" id="crop-w" min="1"></div>
+          <div class="field"><label>高度</label><input type="number" id="crop-h" min="1"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btn-crop-reset">重設裁切框</button>
+          <button class="btn primary" id="btn-crop-apply">套用裁切</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-color" style="display:none;">
+        <h2 data-en="Color Adjust">調色</h2>
+        <div class="field"><label>亮度 <span class="val" id="val-bright">100%</span></label><input type="range" id="c-bright" min="0" max="200" value="100"></div>
+        <div class="field"><label>對比 <span class="val" id="val-contrast">100%</span></label><input type="range" id="c-contrast" min="0" max="200" value="100"></div>
+        <div class="field"><label>飽和度 <span class="val" id="val-sat">100%</span></label><input type="range" id="c-sat" min="0" max="200" value="100"></div>
+        <div class="field"><label>色相偏移 <span class="val" id="val-hue">0°</span></label><input type="range" id="c-hue" min="-180" max="180" value="0"></div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-apply-color">套用調色</button>
+          <button class="btn ghost" id="btn-reset-color">重設滑桿</button>
+          <button class="btn ghost" id="btn-undo-color">還原上一步</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-svg" style="display:none;">
+        <h2><span data-en="Convert to SVG">轉換為 SVG</span> <span class="tag" data-en="experimental">實驗性</span></h2>
+        <div class="field"><label data-en="Color count">顏色數量 <span class="val" id="val-svg-colors">16</span></label><input type="range" id="svg-colors" min="2" max="64" value="16"></div>
+        <div class="field"><label data-en="Line sharpness">直線銳利度 <span class="val" id="val-svg-ltres">1.0</span></label><input type="range" id="svg-ltres" min="0.1" max="10" value="1" step="0.1"></div>
+        <div class="field"><label data-en="Curve smoothness">弧度平滑度 <span class="val" id="val-svg-qtres">1.0</span></label><input type="range" id="svg-qtres" min="0.1" max="10" value="1" step="0.1"></div>
+        <div class="checkbox-row"><input type="checkbox" id="svg-rightangle"><label for="svg-rightangle" data-en="Force right angles at corners">強制轉角拉直為直角</label></div>
+        <div class="field"><label data-en="Output scale">輸出縮放倍率 <span class="val" id="val-svg-scale">1x</span></label><input type="range" id="svg-scale" min="1" max="4" value="1" step="1"></div>
+        <div class="checkbox-row"><input type="checkbox" id="svg-noise" checked><label for="svg-noise" data-en="Ignore small noisy specks (recommended)">忽略雜訊小色塊（建議開啟）</label></div>
+        <div class="divider"></div>
+        <h2 data-en="Recolor (Tint)">染色</h2>
+        <div class="checkbox-row"><input type="checkbox" id="svg-fill-override"><label for="svg-fill-override" data-en="Override fill color">統一填色</label></div>
+        <div class="row">
+          <div class="field"><label data-en="Fill color">填色</label><input type="color" id="svg-fill-color" value="#4fd1c5"></div>
+          <div class="field"><label data-en="Fill opacity">填色透明度 <span class="val" id="val-svg-fill-op">100%</span></label><input type="range" id="svg-fill-opacity" min="0" max="100" value="100"></div>
+        </div>
+        <div class="checkbox-row"><input type="checkbox" id="svg-stroke-override"><label for="svg-stroke-override" data-en="Add outline stroke">加上邊框</label></div>
+        <div class="row">
+          <div class="field"><label data-en="Stroke color">邊框顏色</label><input type="color" id="svg-stroke-color" value="#14161a"></div>
+          <div class="field"><label data-en="Stroke width">邊框寬度 <span class="val" id="val-svg-stroke-w">1</span></label><input type="range" id="svg-stroke-width" min="0.5" max="10" value="1" step="0.5"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-svg-preview" data-en="Generate SVG Preview">產生 SVG 預覽</button>
+          <button class="btn ghost" id="btn-svg-toggle" data-en="Toggle Original / SVG" disabled>切換 原圖／SVG 預覽</button>
+        </div>
+        <p class="hint mono" id="svg-stats"></p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-svg-download" data-en="⬇ Download SVG" disabled>⬇ 下載 SVG</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="stage">
+      <div class="stage-toolbar">
+        <div class="dims" id="dims-label">–</div>
+        <div class="bg-preview-row">
+          <span class="hint" data-en="Preview BG:">預覽底色</span>
+          <button class="bg-swatch active" data-bgval="checker" title="透明棋盤" data-target="static"></button>
+          <button class="bg-swatch" data-bgval="#ffffff" title="白色" data-target="static"></button>
+          <button class="bg-swatch" data-bgval="#000000" title="黑色" data-target="static"></button>
+          <input type="color" class="bg-custom" id="bg-custom-static" value="#22c55e" title="自訂顏色" data-target="static">
+        </div>
+        <span class="hint" data-en="Drag an image anywhere on the page to load it">拖曳圖片到頁面任何地方即可載入</span>
+      </div>
+      <div class="canvas-wrap" id="canvas-wrap">
+        <div class="drop-empty" id="drop-empty">
+          <div class="big">🖼</div>
+          <span data-en="Click to choose an image, or drag one anywhere on the page">點此選擇圖片，或直接拖曳圖片到頁面任何地方</span><br>
+          <span class="hint" data-en="Supports JPG / PNG / WebP">支援 JPG / PNG / WebP</span>
+        </div>
+        <canvas id="stage-canvas" style="display:none;"></canvas>
+        <img id="svg-preview-img" style="display:none;" alt="SVG 預覽">
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ANIMATED ============ -->
+  <div id="wrap-anim" class="workspace" style="display:none;">
+    <div class="sidebar">
+
+      <div class="tool-toolbar" id="anim-toolbar">
+        <button data-tool="anim-remove" class="active" data-en="Remove BG">去背</button>
+        <button data-tool="anim-rc" data-en="Resize/Color">縮放/調色</button>
+        <button data-tool="anim-crop" data-en="Crop">裁切</button>
+        <button data-tool="anim-caption" data-en="Caption">字幕</button>
+        <button data-tool="anim-speed" data-en="Speed/Skip">速度/抽幀</button>
+        <button data-tool="anim-frames" data-en="Edit Frames">畫格編輯</button>
+        <button data-tool="anim-video" data-en="Video→Anim">影片轉動圖</button>
+        <button data-tool="anim-export" data-en="Export">輸出設定</button>
+      </div>
+
+      <div class="panel" id="panel-anim-remove">
+        <h2><span data-en="Remove Background">去背</span> <span class="tag" data-en="applies to all frames">套用到全部畫格</span></h2>
+        <p class="hint" data-en="Pick a color from the current preview frame, preview with tolerance/feather, then click Apply to bake it into every frame. Colors stay picked so you can apply another pass to reinforce it, or pick a new color for the next round (e.g. remove green, then blue).">滴管從目前預覽格取色，調容許度／羽化時即時預覽，滿意再按套用（會套用到全部畫格）。顏色會保留，可再套用一次加強，或重選新顏色做下一輪。</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-eyedrop-anim" data-en="🎯 Pick Color">🎯 選取顏色</button>
+          <button class="btn ghost" id="btn-clear-pick-anim" data-en="Clear Color">清除選色</button>
+        </div>
+        <div id="picked-swatch-anim" class="swatch" style="display:none;">
+          <span class="dot" id="picked-dot-anim"></span><span id="picked-text-anim">尚未選取</span>
+        </div>
+        <div class="field"><label><span data-en="Tolerance">容許度</span> <span class="val" id="val-tol-anim">40</span></label><input type="range" id="tol-anim" min="1" max="100" value="40"></div>
+        <div class="field"><label><span data-en="Edge Feather">邊緣羽化</span> <span class="val" id="val-feather-anim">18</span></label><input type="range" id="feather-anim" min="0" max="100" value="18"></div>
+        <div class="checkbox-row"><input type="checkbox" id="spill-anim" checked><label for="spill-anim" data-en="Fix edge color spill">修正邊緣色溢</label></div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-apply-remove-anim" data-en="Apply This Pass">套用這次去背</button>
+          <button class="btn ghost" id="btn-undo-remove-anim" data-en="Undo Last Step">還原上一步</button>
+        </div>
+        <p class="hint" id="pass-count-hint-anim">尚未套用任何去背。</p>
+      </div>
+
+      <div class="panel" id="panel-anim-rc" style="display:none;">
+        <h2 data-en="Resize / Color">縮放 / 調色</h2>
+        <div class="field"><label>縮放比例 <span class="val" id="val-anim-pct">100%</span></label><input type="range" id="anim-pct" min="10" max="300" value="100"></div>
+        <div class="field"><label>亮度 <span class="val" id="val-anim-bright">100%</span></label><input type="range" id="anim-bright" min="0" max="200" value="100"></div>
+        <div class="field"><label>對比 <span class="val" id="val-anim-contrast">100%</span></label><input type="range" id="anim-contrast" min="0" max="200" value="100"></div>
+        <div class="field"><label>飽和度 <span class="val" id="val-anim-sat">100%</span></label><input type="range" id="anim-sat" min="0" max="200" value="100"></div>
+      </div>
+
+      <div class="panel" id="panel-anim-crop" style="display:none;">
+        <h2><span data-en="Crop">裁切</span> <span class="tag" data-en="applies to all frames">套用到全部畫格</span></h2>
+        <p class="hint">拖曳畫面上的裁切框調整範圍與位置，或直接輸入座標／尺寸，套用後所有畫格都會裁切成同樣的範圍。</p>
+        <div class="field">
+          <label>比例</label>
+          <select id="crop-ratio-anim">
+            <option value="free">自由</option>
+            <option value="1:1">1:1 正方形</option>
+            <option value="4:3">4:3</option>
+            <option value="3:4">3:4</option>
+            <option value="16:9">16:9</option>
+            <option value="9:16">9:16</option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="field"><label>X</label><input type="number" id="crop-x-anim" min="0"></div>
+          <div class="field"><label>Y</label><input type="number" id="crop-y-anim" min="0"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>寬度</label><input type="number" id="crop-w-anim" min="1"></div>
+          <div class="field"><label>高度</label><input type="number" id="crop-h-anim" min="1"></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btn-crop-reset-anim">重設裁切框</button>
+          <button class="btn primary" id="btn-crop-apply-anim">套用裁切（全部畫格）</button>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-anim-caption" style="display:none;">
+        <h2 data-en="Caption">字幕</h2>
+        <div class="field"><label>文字內容</label><input type="text" id="caption-text" placeholder="輸入要疊加的文字"></div>
+        <div class="row">
+          <div class="field"><label>位置</label><select id="caption-pos"><option value="bottom">底部</option><option value="top">頂部</option></select></div>
+          <div class="field"><label>字級</label><input type="number" id="caption-size" value="28" min="8" max="120"></div>
+        </div>
+        <div class="row">
+          <div class="field"><label>文字顏色</label><input type="text" id="caption-color" value="#ffffff"></div>
+          <div class="field"><label>外框顏色</label><input type="text" id="caption-stroke" value="#000000"></div>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-anim-speed" style="display:none;">
+        <h2 data-en="Speed / Frame Skip">速度 / 抽幀</h2>
+        <div class="field"><label>播放速度 <span class="val" id="val-speed">100%</span></label><input type="range" id="speed" min="25" max="400" value="100"></div>
+        <div class="field">
+          <label>抽幀（輸出時保留畫格比例）</label>
+          <select id="frame-skip">
+            <option value="1">全部畫格（不抽幀）</option>
+            <option value="2">每 2 格取 1 格</option>
+            <option value="3">每 3 格取 1 格</option>
+            <option value="4">每 4 格取 1 格</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel" id="panel-anim-frames" style="display:none;">
+        <h2 data-en="Edit Frames">畫格編輯</h2>
+        <p class="hint">在下方畫格清單裡，點縮圖可預覽該格；每格下方可以直接改延遲時間(ms)、複製或刪除該格。也可以插入一張新圖片作為新畫格（會裁切填滿目前畫布尺寸），或直接拖曳圖片到頁面來插入。</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-insert-frame">🖼 插入圖片為新畫格</button>
+        </div>
+        <p class="hint">插入位置：目前選取畫格的後面（尚未載入任何動畫時，插入的第一張圖片會用來建立新的動畫）。</p>
+        <input type="file" id="insert-frame-input" accept="image/*" style="display:none;">
+      </div>
+
+      <div class="panel" id="panel-anim-video" style="display:none;">
+        <h2 data-en="Video → Animation">影片轉動圖</h2>
+        <p class="hint" data-en="Captures video frames in-browser and converts them to editable animation frames. Higher sample FPS or a longer time range means more processing time and a larger file — test with a short clip first.">在瀏覽器內逐格擷取影片畫面，轉換成可繼續編輯的動畫格。取樣 FPS、擷取範圍越長，運算時間與最終檔案就越大，建議先用短片段測試效果。</p>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-pick-video" data-en="🎬 Choose Video File">🎬 選擇影片檔案</button>
+        </div>
+        <input type="file" id="video-file-input" accept="video/*" style="display:none;">
+
+        <div id="video-preview-area" style="display:none;">
+          <video id="video-preview" controls></video>
+          <div class="row">
+            <div class="field"><label data-en="Start">起點</label><input type="text" id="video-start" value="00:00"></div>
+            <div class="field"><label data-en="End">終點</label><input type="text" id="video-end" value="00:00"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn ghost" id="btn-set-start" data-en="⏱ Set Start (current position)">⏱ 設為起點（目前播放位置）</button>
+            <button class="btn ghost" id="btn-set-end" data-en="⏱ Set End (current position)">⏱ 設為終點（目前播放位置）</button>
+          </div>
+          <p class="hint" data-en="Play the video above and pause where you want, then click Set Start/End — or type the time directly (mm:ss).">播放上方影片，暫停在想要的畫面後按下設為起點／終點；也可以直接輸入時間（分:秒）。</p>
+        </div>
+
+        <div class="field"><label data-en="Sample FPS">取樣 FPS</label><input type="number" id="video-fps" value="10" min="1" max="30"></div>
+        <div class="field">
+          <label data-en="Output Size">輸出尺寸</label>
+          <select id="video-size-mode">
+            <option value="original" data-en="Original size">原始尺寸</option>
+            <option value="360" data-en="Width 360px">寬 360px</option>
+            <option value="480" selected data-en="Width 480px">寬 480px</option>
+            <option value="720" data-en="Width 720px">寬 720px</option>
+            <option value="1080" data-en="Width 1080px">寬 1080px</option>
+            <option value="custom" data-en="Custom">手動輸入</option>
+          </select>
+        </div>
+        <div class="field" id="video-custom-w-field" style="display:none;">
+          <label data-en="Custom max width (px)">自訂最大寬度(px)</label>
+          <input type="number" id="video-maxw" value="480" min="64" max="1920">
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" id="btn-convert-video" data-en="✅ Convert to Animation Frames">✅ 開始轉換為動畫格</button>
+        </div>
+        <progress id="video-progress" value="0" max="1" style="display:none;"></progress>
+        <p class="hint" id="video-status"></p>
+      </div>
+
+      <div class="panel" id="panel-anim-export" style="display:none;">
+        <h2 data-en="Export Settings">輸出設定</h2>
+        <div class="field">
+          <label>輸出格式</label>
+          <select id="output-format">
+            <option value="gif">GIF</option>
+            <option value="apng">APNG（png）</option>
+          </select>
+        </div>
+        <div class="field" id="gif-quality-field">
+          <label>GIF 品質（數字越小畫質越好、檔案越大） <span class="val" id="val-gif-q">10</span></label>
+          <input type="range" id="gif-quality" min="1" max="30" value="10">
+        </div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btn-estimate-anim">📊 預估輸出容量</button>
+        </div>
+        <p class="hint mono" id="estimate-result"></p>
+        <p class="hint">按右上角「輸出並下載」執行完整輸出。APNG 解碼／編碼使用瀏覽器內建壓縮串流 API；16-bit 色深或交錯式 PNG 暫不支援。</p>
+      </div>
+
+    </div>
+
+    <div class="stage">
+      <div class="stage-toolbar">
+        <div class="dims" id="anim-dims-label">–</div>
+        <div class="bg-preview-row">
+          <span class="hint" data-en="Preview BG:">預覽底色</span>
+          <button class="bg-swatch active" data-bgval="checker" title="透明棋盤" data-target="anim"></button>
+          <button class="bg-swatch" data-bgval="#ffffff" title="白色" data-target="anim"></button>
+          <button class="bg-swatch" data-bgval="#000000" title="黑色" data-target="anim"></button>
+          <input type="color" class="bg-custom" id="bg-custom-anim" value="#22c55e" title="自訂顏色" data-target="anim">
+        </div>
+        <div><span class="badge" id="anim-frame-count" data-en="0 frames">0 格</span> <span class="badge" id="anim-format-badge">–</span></div>
+      </div>
+      <div class="canvas-wrap" id="anim-canvas-wrap">
+        <div class="drop-empty" id="anim-empty">
+          <div class="big">🎞</div>
+          <span data-en="Click to choose a GIF or APNG, or drag one anywhere on the page">點此選擇 GIF 或 APNG，或拖曳到頁面任何地方</span>
+        </div>
+        <canvas id="anim-preview-canvas" style="display:none;"></canvas>
+      </div>
+      <div class="frame-strip" id="anim-frame-strip"></div>
+    </div>
+  </div>
+
+</main>
+
+<footer data-en="Everything runs in your browser. Images are never uploaded to any server. Everything clears when you close this tab.">所有處理都在你的瀏覽器裡完成，圖片不會上傳到任何伺服器。關閉分頁後即清空。</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* =========================================================================
+   TAB SWITCHING (top-level: static vs animated)
+   ========================================================================= */
+const tabButtons = document.querySelectorAll('#tabnav button');
+const wrapStatic = document.getElementById('wrap-static');
+const wrapAnim = document.getElementById('wrap-anim');
+const actionBarStatic = document.getElementById('action-bar-static');
+const actionBarAnim = document.getElementById('action-bar-anim');
+tabButtons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    tabButtons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    if(btn.dataset.tab === 'anim'){
+      wrapStatic.style.display = 'none'; wrapAnim.style.display = 'grid';
+      actionBarStatic.style.display = 'none'; actionBarAnim.style.display = 'flex';
+    } else {
+      wrapAnim.style.display = 'none'; wrapStatic.style.display = 'grid';
+      actionBarAnim.style.display = 'none'; actionBarStatic.style.display = 'flex';
+    }
+  });
+});
+
+/* generic toolbar-switch helper: buttons with data-tool toggle sibling panels with id panel-<tool> */
+function wireToolbar(toolbarEl, panelPrefix){
+  const buttons = toolbarEl.querySelectorAll('button');
+  buttons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      buttons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      buttons.forEach(b=>{
+        const panel = document.getElementById(panelPrefix + b.dataset.tool);
+        if(panel) panel.style.display = (b === btn) ? 'flex' : 'none';
+      });
+    });
+  });
+}
+wireToolbar(document.getElementById('static-toolbar'), 'panel-');
+wireToolbar(document.getElementById('anim-toolbar'), 'panel-');
+
+/* =========================================================================
+   THEME TOGGLE (dark / light)
+   ========================================================================= */
+const themeToggleBtn = document.getElementById('btn-theme-toggle');
+const themeToggleLabel = document.getElementById('theme-toggle-label');
+const themeToggleIcon = document.getElementById('theme-toggle-icon');
+const ICON_SUN = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="m50.44 3c0.54 0 2.52 3.26 4.42 7.25 1.89 3.99 3.6 7.36 3.79 7.5 0.19 0.14 3.61-1.78 14.85-8.79l0.5 17.04 16.8 0.5-8.71 15 7.44 4c4.09 2.2 7.44 4.23 7.45 4.5 0 0.27-3.14 2.19-6.99 4.25-3.84 2.06-6.97 4.31-6.95 5 0.02 0.69 1.78 4.17 7.79 14.25l-16.83 0.5-0.5 16.8-15-8.71-4 7.44c-2.2 4.09-4.23 7.44-4.5 7.45-0.27 0.01-2.3-3.34-8.5-14.89l-15 8.86-0.5-16.95-16.95-0.5 8.86-15-7.45-4c-4.1-2.2-7.45-4.23-7.44-4.5 0.01-0.27 3.36-2.3 14.91-8.5l-8.88-15 16.95-0.5 0.5-16.93 15 8.74 3.99-7.4c2.19-4.08 4.42-7.41 4.95-7.41zm-8.19 18c-0.41 0-3.34-1.58-6.5-3.5-3.16-1.93-5.97-3.5-6.25-3.5-0.27 0-0.5 3.38-0.5 7.5v7.5l-15 0.5c5.43 8.91 7 11.95 7 12.5 0 0.55-2.7 2.35-6 4-3.3 1.65-6 3.45-6 4 0 0.55 2.7 2.35 6 4 3.3 1.65 6 3.45 6 4 0 0.55-1.57 3.59-3.5 6.75l-3.5 5.75 15 0.5v15c9.69-5.39 12.84-6.96 13.25-6.98 0.41-0.01 2.1 2.68 3.75 5.98 1.65 3.3 3.34 6.02 3.75 6.04 0.41 0.02 2.21-2.68 4-6 1.79-3.32 3.59-6.03 4-6.02 0.41 0.02 3.56 1.59 7 3.5l6.25 3.48v-15h15c-6.47-12.1-6.94-13.66-5.86-14.29 0.75-0.43 3.5-1.9 6.11-3.25 2.61-1.35 4.75-2.91 4.75-3.46 0-0.55-2.7-2.35-6-4-3.3-1.65-6-3.23-6-3.5 0-0.27 1.58-3.42 3.5-7l3.5-6.5h-15l-0.5-15c-8.91 5.43-11.84 7.02-12.25 7.04-0.41 0.02-2.21-2.68-4-6-1.79-3.32-3.69-6.04-4.24-6.04-0.54 0-2.34 2.7-4 6-1.65 3.3-3.35 6-3.76 6zm5.25-2c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.83 0-1.5-0.45-1.5-1 0-0.55 0.67-1 1.5-1zm5 0c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.83 0-1.5-0.45-1.5-1 0-0.55 0.67-1 1.5-1zm-15.5 3c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm26 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-30 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1.23-1 1.5-0.55 0.27-1-0.18-1-1 0-0.83 0.45-1.5 1-1.5zm18.5 0.37c3.96 0.17 8.41 1.03 10.25 1.97 1.79 0.91 4.83 3.23 6.75 5.16 1.92 1.92 4.28 4.96 5.24 6.75 1.27 2.36 1.74 5.58 1.74 11.75 0 6.17-0.47 9.39-1.74 11.75-0.96 1.79-3.32 4.83-5.24 6.75-1.92 1.92-4.96 4.28-6.75 5.24-2.36 1.27-5.58 1.74-11.75 1.74-6.17 0-9.39-0.47-11.75-1.74-1.79-0.96-4.83-3.32-6.75-5.24-1.92-1.92-4.23-4.96-5.11-6.75-0.89-1.79-1.85-5.28-2.13-7.75-0.29-2.48-0.24-6.53 0.1-9 0.34-2.48 1.93-6.53 3.53-9 1.6-2.48 4.64-5.74 6.76-7.25 2.12-1.51 5.2-3.18 6.85-3.72 1.65-0.54 6.15-0.84 10-0.66zm-18 9.13c-3.36 3.36-4.91 5.96-6.12 10.25-1.32 4.68-1.42 6.68-0.52 10.75 0.6 2.75 2.37 6.8 3.92 9 1.55 2.2 4.37 4.99 6.27 6.2 1.9 1.2 5.7 2.72 8.45 3.37 4.17 0.99 5.95 0.92 10.75-0.44 4.28-1.21 6.9-2.78 10.25-6.13 3.36-3.36 4.91-5.96 6.12-10.25 1.4-4.96 1.45-6.5 0.33-11.25-0.72-3.04-2.68-7.26-4.38-9.44-1.69-2.16-5.09-4.97-7.57-6.24-2.47-1.27-6.52-2.53-9-2.8-2.58-0.28-6.53 0.15-9.25 1-3.05 0.95-6.36 3.09-9.25 5.98zm33.5-9.5c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.27-1 1-0.55-0.28-1-0.95-1-1.5 0-0.55 0.45-1 1-1zm-41.71 8c0.71 0 1.16 0.45 1 1-0.16 0.55-0.74 1-1.29 1-0.55 0-1-0.45-1-1 0-0.55 0.58-1 1.29-1zm49.11 0c0.88 0 1.6 0.45 1.6 1 0 0.55-0.45 1-1 1-0.55 0-1.27-0.45-1.6-1-0.33-0.55 0.12-1 1-1zm-51.4 4c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm54 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-57 10c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm60 0c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm-60 5c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm60 0c0.55 0 1 0.67 1 1.5 0 0.82-0.45 1.5-1 1.5-0.55 0-1-0.68-1-1.5 0-0.83 0.45-1.5 1-1.5zm-57.6 11c0.88 0 1.6 0.45 1.6 1 0 0.55-0.45 1-1 1-0.55 0-1.27-0.45-1.6-1-0.33-0.55 0.12-1 1-1zm54.6 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-52 4c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm50.05 0c0.52 0 0.96 0.34 0.98 0.75 0.01 0.41-0.32 1.08-0.75 1.48-0.43 0.4-1.12 0.51-1.53 0.25-0.41-0.27-0.5-0.93-0.2-1.48 0.3-0.55 0.98-1 1.5-1zm-41.59 7.9c0.57 0.58 0.7 1.3 0.29 1.58-0.41 0.29-1.2 0.3-1.75 0.02-0.55-0.28-0.68-0.99-0.29-1.59 0.51-0.77 1.01-0.77 1.75-0.01zm33.54 0.1c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-30 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm26 0c0.55 0 1 0.45 1 1 0 0.55-0.45 1.22-1 1.5-0.55 0.28-1-0.18-1-1 0-0.83 0.45-1.5 1-1.5zm-15.5 3c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1zm5 0c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1z"/></svg>';
+const ICON_MOON = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><path d="m47.5 10.28c3.43 0.13 5.88 0.65 5.71 1.22-0.16 0.55-1.96 1.58-4 2.28-2.04 0.71-5.4 2.62-7.46 4.25-2.06 1.64-4.2 2.97-4.75 2.97-0.55 0-1-0.45-1-1 0-0.55 1.91-2.41 8.5-7.25l-4 0.71c-2.2 0.38-6.02 1.6-8.5 2.7-2.48 1.1-6.26 3.43-8.4 5.17-2.15 1.74-5.28 5.19-6.95 7.67-1.68 2.48-3.86 7.09-4.85 10.25-0.99 3.16-1.81 7.89-1.82 10.5-0.01 2.61 0.89 7.67 2 11.25 1.12 3.58 3.6 8.64 5.52 11.25 1.93 2.61 5.41 6.12 7.75 7.79 2.34 1.68 6.61 3.93 9.5 5q5.25 1.96 12.75 1.96 7.5 0 12.75-1.96c2.89-1.07 7.16-3.32 9.5-5 2.34-1.67 5.82-5.18 7.75-7.79 1.92-2.61 4.4-7.67 5.52-11.25 1.11-3.58 1.98-8.75 1.93-11.5-0.05-2.75-0.44-5.9-0.87-7-0.65-1.69-0.87-1.46-1.41 1.5-0.35 1.92-1.28 4.4-2.07 5.5-0.79 1.1-1.81 1.67-2.27 1.26-0.46-0.41-0.04-2.54 0.92-4.75 0.97-2.22 1.75-6.47 1.75-9.51 0-3.02 0.45-5.5 1-5.5 0.55 0 1.7 1.69 2.55 3.75 0.85 2.06 1.9 6.23 2.34 9.25 0.43 3.02 0.4 8.31-0.06 11.75-0.45 3.44-2.02 8.61-3.47 11.5-1.45 2.89-3.81 6.7-5.25 8.47-1.44 1.77-4.86 4.83-7.61 6.79-2.75 1.97-7.92 4.47-11.5 5.55-3.58 1.09-8.75 1.98-11.5 1.98-2.75 0-7.92-0.88-11.5-1.95-3.58-1.08-8.8-3.67-11.62-5.77-2.81-2.1-6.24-5.17-7.61-6.82-1.38-1.65-3.69-5.36-5.14-8.25-1.44-2.89-3.01-8.06-3.46-11.5-0.46-3.44-0.46-8.84 0-12 0.45-3.16 2.02-8.11 3.46-11 1.45-2.89 3.76-6.6 5.14-8.25 1.37-1.65 4.8-4.72 7.61-6.82 2.82-2.1 7.82-4.67 11.12-5.72 3.68-1.16 8.32-1.81 12-1.68zm22.59-2.28c0.48 0.82 0.89 2.51 0.89 3.75 0.01 1.24 0.69 2.93 1.52 3.75 0.83 0.82 2.74 1.51 4.25 1.52 2.14 0.01 2.42 0.22 1.25 0.98-0.83 0.53-2.51 0.98-3.75 0.98-1.31 0.01-2.43 0.75-2.68 1.77-0.23 0.96-0.75 3.32-1.9 8.75l-1.09-4.94c-0.98-4.46-1.41-5.03-4.58-5.88-1.92-0.51-3.05-1.07-2.5-1.22 0.55-0.16 2.24-0.55 3.75-0.87 2.41-0.52 2.82-1.17 3.35-5.34 0.43-3.39 0.86-4.32 1.49-3.25zm-35.09 15c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-2.6 5c0.88 0 1.6 0.23 1.6 0.5 0 0.27-0.45 0.73-1 1-0.55 0.27-1.27 0.05-1.6-0.5-0.33-0.55 0.12-1 1-1zm-0.31 4.48c0.5 0.29 0.69 0.97 0.41 1.52-0.27 0.55-0.95 0.77-1.5 0.5-0.55-0.27-0.74-0.96-0.41-1.52 0.32-0.56 0.99-0.78 1.5-0.5zm20.29 0.02l0.56 2.9c0.32 1.66 1.41 3.2 2.56 3.6 1.92 0.68 1.92 0.73-0.25 1.35-1.62 0.47-2.26 1.43-2.33 6.15l-1.46-3.25c-0.8-1.79-2.25-3.42-3.21-3.63-1.24-0.28-1.09-0.42 0.5-0.5 1.69-0.09 2.42-0.93 2.94-3.37zm-20.29 4.98c0.5 0.29 0.69 0.97 0.41 1.52-0.27 0.55-0.95 0.77-1.5 0.5-0.55-0.28-0.73-0.96-0.41-1.52 0.32-0.56 0.99-0.78 1.5-0.5zm0.68 5.52c0.21 0.83 0.13 1.73-0.19 2-0.32 0.27-0.8 0.16-1.08-0.25-0.27-0.41-0.19-1.31 0.19-2 0.52-0.94 0.78-0.88 1.08 0.25zm1.23 4c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm3.09 4.48c0.5 0.29 0.69 0.97 0.41 1.52-0.27 0.55-0.95 0.77-1.5 0.5-0.55-0.28-0.73-0.96-0.41-1.52 0.32-0.56 0.99-0.78 1.5-0.5zm38.91 1.52c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-36 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm32.55 1c0.25 0 0.45 0.67 0.45 1.5 0 0.83-0.45 1.27-1 1-0.55-0.28-0.75-0.95-0.45-1.5 0.3-0.55 0.75-1 1-1zm-28.55 2c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm24 1c0.55 0 1 0.45 1 1 0 0.55-0.45 1-1 1-0.55 0-1-0.45-1-1 0-0.55 0.45-1 1-1zm-19.5 1c0.83 0 1.5 0.45 1.5 1 0 0.55-0.67 1-1.5 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1zm15.27 1c0.21 0.83 0.13 1.72-0.19 2-0.32 0.27-0.8 0.16-1.08-0.25-0.27-0.41-0.19-1.31 0.19-2 0.52-0.94 0.78-0.88 1.08 0.25zm-10.77 0c0.55 0 1.23 0.45 1.5 1 0.28 0.55-0.17 1-1 1-0.82 0-1.5-0.45-1.5-1 0-0.55 0.45-1 1-1zm6.09 0.48c0.5 0.29 0.69 0.97 0.41 1.52-0.27 0.55-0.95 0.77-1.5 0.5-0.55-0.28-0.73-0.96-0.41-1.52 0.32-0.56 0.99-0.78 1.5-0.5zm26.91 19.52c0.55 0 1 0.9 1 2 0 1.3 0.79 2.13 4.5 2.75l-2.25 0.62c-1.37 0.39-2.25 1.41-2.25 2.63 0 1.1-0.45 2-1 2-0.55 0-1-0.9-1-2 0-1.11-0.66-2-1.5-2-0.82 0-1.5-0.45-1.5-1 0-0.55 0.68-1 1.5-1 0.84 0 1.5-0.89 1.5-2 0-1.1 0.45-2 1-2z"/></svg>';
+function applyTheme(light){
+  document.documentElement.classList.toggle('light-theme', light);
+  /* Icon shows the *target* mode (what clicking will switch to), matching the previous emoji behaviour */
+  themeToggleIcon.innerHTML = light ? ICON_MOON : ICON_SUN;
+  themeToggleIcon.classList.toggle('icon-sun', !light);
+  themeToggleIcon.classList.toggle('icon-moon', light);
+  themeToggleLabel.textContent = (currentLang === 'en') ? (light ? 'Dark' : 'Light') : (light ? '暗色' : '亮色');
+}
+// language + theme are owned by the shared controller (assets/shared.js)
+// so a choice made in any tool carries over to the others.
+let isLight = SharedSettings.getTheme() === 'light';
+applyTheme(isLight);
+themeToggleBtn.addEventListener('click', ()=>{
+  isLight = !isLight;
+  SharedSettings.setTheme(isLight ? 'light' : 'dark');
+  applyTheme(isLight);
+});
+
+/* =========================================================================
+   LANGUAGE TOGGLE (中文 / English)
+   ========================================================================= */
+let currentLang = 'zh';
+const langToggleBtn = document.getElementById('btn-lang-toggle');
+function applyLang(lang){
+  currentLang = lang;
+  document.querySelectorAll('[data-en]').forEach(el=>{
+    if(el.dataset.zhCache === undefined) el.dataset.zhCache = el.textContent;
+    el.textContent = (lang === 'en') ? el.dataset.en : el.dataset.zhCache;
+  });
+  langToggleBtn.textContent = (lang === 'en') ? '中文' : 'EN';
+  document.documentElement.lang = (lang === 'en') ? 'en' : 'zh-Hant';
+  themeToggleLabel.textContent = (lang === 'en') ? (isLight ? 'Dark' : 'Light') : (isLight ? '暗色' : '亮色');
+  SharedSettings.paintHomeLinks(lang);
+}
+langToggleBtn.addEventListener('click', ()=> {
+  const next = currentLang === 'zh' ? 'en' : 'zh';
+  SharedSettings.setLang(next);
+  applyLang(next);
+});
+applyLang(SharedSettings.getLang());
+
+/* =========================================================================
+   TEMPORARY PREVIEW BACKGROUND (checker / white / black / custom)
+   ========================================================================= */
+function wireBgSwatches(targetName, wrapEl){
+  const buttons = document.querySelectorAll(`.bg-swatch[data-target="${targetName}"]`);
+  const customInput = document.getElementById('bg-custom-' + targetName);
+  function setBg(val){
+    if(val === 'checker'){ wrapEl.style.backgroundImage = ''; wrapEl.style.backgroundColor = ''; }
+    else { wrapEl.style.backgroundImage = 'none'; wrapEl.style.backgroundColor = val; }
+    buttons.forEach(b=> b.classList.toggle('active', b.dataset.bgval === val));
+  }
+  buttons.forEach(b=> b.addEventListener('click', ()=> setBg(b.dataset.bgval)));
+  customInput.addEventListener('input', ()=> setBg(customInput.value));
+}
+wireBgSwatches('static', document.getElementById('canvas-wrap'));
+wireBgSwatches('anim', document.getElementById('anim-canvas-wrap'));
+
+/* =========================================================================
+   GLOBAL DRAG & DROP (whole page, routes by active tab)
+   ========================================================================= */
+let dragCounter = 0;
+document.addEventListener('dragenter', e=>{ e.preventDefault(); dragCounter++; document.body.classList.add('drag-active'); });
+document.addEventListener('dragover', e=> e.preventDefault());
+document.addEventListener('dragleave', e=>{ e.preventDefault(); dragCounter--; if(dragCounter<=0){ dragCounter=0; document.body.classList.remove('drag-active'); } });
+document.addEventListener('drop', e=>{ e.preventDefault(); dragCounter=0; document.body.classList.remove('drag-active'); });
+/* actual routing handlers are registered inside each tab's IIFE below */
+
+/* =========================================================================
+   SHARED IMAGE-PROCESSING HELPERS
+   ========================================================================= */
+function cloneCanvas(c){
+  const n = document.createElement('canvas');
+  n.width = c.width; n.height = c.height;
+  n.getContext('2d').drawImage(c,0,0);
+  return n;
+}
+
+function cropCanvasByBox(canvas, box){
+  const out = document.createElement('canvas');
+  out.width = Math.max(1, Math.round(box.w));
+  out.height = Math.max(1, Math.round(box.h));
+  out.getContext('2d').drawImage(canvas, -Math.round(box.x), -Math.round(box.y));
+  return out;
+}
+
+function frameHasTransparency(canvas){
+  const ctx = canvas.getContext('2d');
+  const data = ctx.getImageData(0,0,canvas.width,canvas.height).data;
+  for(let i=3;i<data.length;i+=4){ if(data[i] < 255) return true; }
+  return false;
+}
+
+function formatBytes(bytes){
+  if(bytes < 1024) return Math.round(bytes) + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+
+/* Reusable interactive crop-box overlay. cfg: {wrap, canvas, xInput, yInput, wInput, hInput,
+   ratioSelect, btnApply, btnReset, onApply(box)} */
+function createCropTool(cfg){
+  const overlay = document.createElement('div');
+  overlay.className = 'crop-overlay';
+  const boxEl = document.createElement('div');
+  boxEl.className = 'crop-box';
+  ['nw','ne','sw','se'].forEach(pos=>{
+    const h = document.createElement('div');
+    h.className = 'crop-handle ' + pos;
+    boxEl.appendChild(h);
+  });
+  overlay.appendChild(boxEl);
+  cfg.wrap.appendChild(overlay);
+
+  let box = {x:0,y:0,w:1,h:1};
+  let dragMode = null, dragStart = null, boxStart = null, syncing = false;
+
+  function clamp(v,min,max){ return Math.min(max, Math.max(min, v)); }
+
+  function scaleFactors(){
+    const r = cfg.canvas.getBoundingClientRect();
+    return { sx: r.width / (cfg.canvas.width || 1), sy: r.height / (cfg.canvas.height || 1) };
+  }
+
+  function syncOverlayFrame(){
+    const wrapRect = cfg.wrap.getBoundingClientRect();
+    const canvasRect = cfg.canvas.getBoundingClientRect();
+    overlay.style.left = (canvasRect.left - wrapRect.left) + 'px';
+    overlay.style.top = (canvasRect.top - wrapRect.top) + 'px';
+    overlay.style.width = canvasRect.width + 'px';
+    overlay.style.height = canvasRect.height + 'px';
+    renderBox();
+  }
+
+  function renderBox(){
+    const {sx,sy} = scaleFactors();
+    boxEl.style.left = (box.x*sx) + 'px';
+    boxEl.style.top = (box.y*sy) + 'px';
+    boxEl.style.width = (box.w*sx) + 'px';
+    boxEl.style.height = (box.h*sy) + 'px';
+    syncing = true;
+    cfg.xInput.value = Math.round(box.x);
+    cfg.yInput.value = Math.round(box.y);
+    cfg.wInput.value = Math.round(box.w);
+    cfg.hInput.value = Math.round(box.h);
+    syncing = false;
+  }
+
+  function resetBox(){
+    box = {x:0, y:0, w: cfg.canvas.width, h: cfg.canvas.height};
+    renderBox();
+  }
+
+  function applyRatio(){
+    const val = cfg.ratioSelect.value;
+    if(val === 'free') return;
+    const [rw, rh] = val.split(':').map(Number);
+    const targetRatio = rw/rh;
+    const cw = cfg.canvas.width, ch = cfg.canvas.height;
+    let w = box.w, h = Math.round(w/targetRatio);
+    if(h > ch){ h = ch; w = Math.round(h*targetRatio); }
+    if(w > cw){ w = cw; h = Math.round(w/targetRatio); }
+    const cx = box.x + box.w/2, cy = box.y + box.h/2;
+    const x = clamp(Math.round(cx - w/2), 0, Math.max(0, cw-w));
+    const y = clamp(Math.round(cy - h/2), 0, Math.max(0, ch-h));
+    box = {x,y,w,h};
+    renderBox();
+  }
+  cfg.ratioSelect.addEventListener('change', applyRatio);
+
+  boxEl.addEventListener('mousedown', e=>{
+    if(e.target.classList.contains('crop-handle')) return;
+    dragMode = 'move'; dragStart = {x:e.clientX, y:e.clientY}; boxStart = Object.assign({}, box);
+    e.preventDefault();
+  });
+  boxEl.querySelectorAll('.crop-handle').forEach(h=>{
+    h.addEventListener('mousedown', e=>{
+      const cls = Array.from(h.classList).find(c=>['nw','ne','sw','se'].includes(c));
+      dragMode = 'resize-' + cls;
+      dragStart = {x:e.clientX, y:e.clientY}; boxStart = Object.assign({}, box);
+      e.preventDefault(); e.stopPropagation();
+    });
+  });
+  window.addEventListener('mousemove', e=>{
+    if(!dragMode || overlay.style.display === 'none') return;
+    const cw = cfg.canvas.width, ch = cfg.canvas.height;
+    const {sx, sy} = scaleFactors();
+    const dx = (e.clientX - dragStart.x)/sx, dy = (e.clientY - dragStart.y)/sy;
+    if(dragMode === 'move'){
+      box.x = clamp(boxStart.x+dx, 0, Math.max(0, cw-box.w));
+      box.y = clamp(boxStart.y+dy, 0, Math.max(0, ch-box.h));
+    } else {
+      let {x,y,w,h} = boxStart;
+      if(dragMode.includes('n')){ y = boxStart.y+dy; h = boxStart.h-dy; }
+      if(dragMode.includes('s')){ h = boxStart.h+dy; }
+      if(dragMode.includes('w')){ x = boxStart.x+dx; w = boxStart.w-dx; }
+      if(dragMode.includes('e')){ w = boxStart.w+dx; }
+      w = Math.max(10, w); h = Math.max(10, h);
+      x = clamp(x, 0, cw - w); y = clamp(y, 0, ch - h);
+      w = Math.min(w, cw-x); h = Math.min(h, ch-y);
+      box = {x,y,w,h};
+    }
+    renderBox();
+  });
+  window.addEventListener('mouseup', ()=>{ dragMode = null; });
+
+  [cfg.xInput, cfg.yInput, cfg.wInput, cfg.hInput].forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      if(syncing) return;
+      const cw = cfg.canvas.width, ch = cfg.canvas.height;
+      let x = clamp(+cfg.xInput.value||0, 0, Math.max(0,cw-1));
+      let y = clamp(+cfg.yInput.value||0, 0, Math.max(0,ch-1));
+      let w = clamp(+cfg.wInput.value||1, 1, cw-x);
+      let h = clamp(+cfg.hInput.value||1, 1, ch-y);
+      box = {x,y,w,h};
+      renderBox();
+    });
+  });
+
+  cfg.btnReset.addEventListener('click', resetBox);
+  cfg.btnApply.addEventListener('click', ()=>{
+    cfg.onApply(Object.assign({}, box));
+    deactivate();
+  });
+
+  function activate(){
+    overlay.style.display = 'block';
+    resetBox();
+    syncOverlayFrame();
+  }
+  function deactivate(){ overlay.style.display = 'none'; dragMode = null; }
+
+  window.addEventListener('resize', ()=>{ if(overlay.style.display !== 'none') syncOverlayFrame(); });
+
+  return { activate, deactivate, syncOverlayFrame };
+}
+
+function chromaKey(canvas, targetColor, tolerance, feather, spillSuppress){
+  const out = cloneCanvas(canvas);
+  const ctx = out.getContext('2d');
+  const imgData = ctx.getImageData(0,0,out.width,out.height);
+  const data = imgData.data;
+  const maxDist = 441.673;
+  const t = (tolerance/100) * maxDist;
+  const f = Math.max(1, (feather/100) * maxDist);
+  const [tr,tg,tb] = targetColor;
+  const maxC = Math.max(tr,tg,tb);
+  const dominant = (tg===maxC) ? 'g' : (tb===maxC ? 'b' : 'r');
+  for(let i=0; i<data.length; i+=4){
+    const r=data[i], g=data[i+1], b=data[i+2], a=data[i+3];
+    if(a===0) continue;
+    const dr=r-tr, dg=g-tg, db=b-tb;
+    const dist = Math.sqrt(dr*dr+dg*dg+db*db);
+    let alphaMul;
+    if(dist <= t) alphaMul = 0;
+    else if(dist >= t+f) alphaMul = 1;
+    else { const x=(dist-t)/f; alphaMul = x*x*(3-2*x); }
+    data[i+3] = Math.round(a*alphaMul);
+    if(spillSuppress && alphaMul > 0 && alphaMul < 1){
+      if(dominant==='g'){ const avg=(r+b)/2; if(g>avg) data[i+1]=avg; }
+      else if(dominant==='b'){ const avg=(r+g)/2; if(b>avg) data[i+2]=avg; }
+      else { const avg=(g+b)/2; if(r>avg) data[i]=avg; }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return out;
+}
+
+function highQualityResize(sourceCanvas, targetW, targetH){
+  let curCanvas = sourceCanvas;
+  let curW = sourceCanvas.width, curH = sourceCanvas.height;
+  while(curW*0.5 > targetW && curH*0.5 > targetH){
+    const nw = Math.max(targetW, Math.round(curW*0.5));
+    const nh = Math.max(targetH, Math.round(curH*0.5));
+    const tmp = document.createElement('canvas');
+    tmp.width = nw; tmp.height = nh;
+    const tctx = tmp.getContext('2d');
+    tctx.imageSmoothingEnabled = true; tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(curCanvas, 0, 0, nw, nh);
+    curCanvas = tmp; curW = nw; curH = nh;
+  }
+  const final = document.createElement('canvas');
+  final.width = targetW; final.height = targetH;
+  const fctx = final.getContext('2d');
+  fctx.imageSmoothingEnabled = true; fctx.imageSmoothingQuality = 'high';
+  fctx.drawImage(curCanvas, 0, 0, targetW, targetH);
+  return final;
+}
+
+function simpleResize(sourceCanvas, targetW, targetH){
+  const final = document.createElement('canvas');
+  final.width = targetW; final.height = targetH;
+  const fctx = final.getContext('2d');
+  fctx.imageSmoothingEnabled = true; fctx.imageSmoothingQuality = 'high';
+  fctx.drawImage(sourceCanvas, 0, 0, targetW, targetH);
+  return final;
+}
+
+function drawCaption(canvas, opts){
+  if(!opts.text) return canvas;
+  const out = cloneCanvas(canvas);
+  const ctx = out.getContext('2d');
+  const fontSize = Math.max(8, opts.fontSize|0);
+  ctx.font = `bold ${fontSize}px "Microsoft JhengHei", "PingFang TC", sans-serif`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const x = out.width/2;
+  const y = opts.position === 'top' ? fontSize + 12 : out.height - 14;
+  ctx.lineWidth = Math.max(2, Math.round(fontSize/7));
+  ctx.strokeStyle = opts.strokeColor || '#000000';
+  ctx.fillStyle = opts.color || '#ffffff';
+  ctx.lineJoin = 'round';
+  ctx.strokeText(opts.text, x, y);
+  ctx.fillText(opts.text, x, y);
+  return out;
+}
+
+function loadImageElement(file){
+  return new Promise((resolve,reject)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = ()=>{ resolve(img); URL.revokeObjectURL(url); };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function detectFormat(file){
+  const buf = await file.slice(0,8).arrayBuffer();
+  const b = new Uint8Array(buf);
+  if(b[0]===0x47 && b[1]===0x49 && b[2]===0x46) return 'gif';
+  if(b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47) return 'png';
+  return 'unknown';
+}
+
+/* =========================================================================
+   STATIC IMAGE TAB
+   ========================================================================= */
+(function staticTab(){
+  const stageCanvas = document.getElementById('stage-canvas');
+  const sctx = stageCanvas.getContext('2d', {willReadFrequently:true});
+  const dropEmpty = document.getElementById('drop-empty');
+  const canvasWrap = document.getElementById('canvas-wrap');
+  const fileInput = document.getElementById('file-input');
+  const srcName = document.getElementById('src-name');
+  const dimsLabel = document.getElementById('dims-label');
+
+  let originalCanvas = null;
+  let history = [];
+  let passCount = 0;
+
+  function currentCanvas(){ return history[history.length-1]; }
+
+  function drawToStage(c){
+    stageCanvas.width = c.width; stageCanvas.height = c.height;
+    sctx.clearRect(0,0,c.width,c.height);
+    sctx.drawImage(c,0,0);
+    dimsLabel.textContent = c.width + ' × ' + c.height + ' px';
+    dropEmpty.style.display = 'none';
+    stageCanvas.style.display = 'block';
+  }
+
+  function renderStage(){ const c = currentCanvas(); if(!c) return; drawToStage(c); syncResizeFields(); }
+
+  function pushState(newCanvas){
+    history.push(newCanvas);
+    if(history.length > 25) history.shift();
+    renderStage();
+  }
+
+  function loadImageFile(file){
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = function(){
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      originalCanvas = cloneCanvas(c);
+      history = [cloneCanvas(c)];
+      passCount = 0;
+      passCountHint.textContent = '尚未套用任何去背。';
+      srcName.textContent = file.name || '剪貼簿圖片';
+      renderStage();
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  }
+
+  document.getElementById('btn-load').addEventListener('click', ()=> fileInput.click());
+  dropEmpty.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', e=>{ if(e.target.files[0]) loadImageFile(e.target.files[0]); });
+
+  document.addEventListener('drop', e=>{
+    if(wrapStatic.style.display === 'none') return;
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(file && file.type.startsWith('image/')) loadImageFile(file);
+  });
+
+  /* ---- 剪貼簿貼上 ---- */
+  document.addEventListener('paste', e=>{
+    if(wrapStatic.style.display === 'none') return;
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items) return;
+    for(const item of items){
+      if(item.type && item.type.startsWith('image/')){
+        const file = item.getAsFile();
+        if(file){ loadImageFile(file); e.preventDefault(); return; }
+      }
+    }
+  });
+
+  document.getElementById('btn-paste').addEventListener('click', async ()=>{
+    if(!navigator.clipboard || !navigator.clipboard.read){
+      alert('這個瀏覽器不支援從按鈕讀取剪貼簿，請直接在頁面上按 Ctrl/Cmd+V 貼上圖片。');
+      return;
+    }
+    try{
+      const items = await navigator.clipboard.read();
+      for(const item of items){
+        const type = item.types.find(t=> t.startsWith('image/'));
+        if(type){ const blob = await item.getType(type); loadImageFile(blob); return; }
+      }
+      alert('剪貼簿中沒有偵測到圖片，請先複製一張圖片。');
+    }catch(err){
+      alert('無法讀取剪貼簿（可能未授權存取），請直接在頁面上按 Ctrl/Cmd+V 貼上。');
+    }
+  });
+
+  document.getElementById('btn-reset-all').addEventListener('click', ()=>{
+    if(!originalCanvas) return;
+    history = [cloneCanvas(originalCanvas)];
+    passCount = 0;
+    passCountHint.textContent = '尚未套用任何去背。';
+    renderStage();
+  });
+
+  document.getElementById('btn-download').addEventListener('click', ()=>{
+    const c = currentCanvas(); if(!c) return;
+    const a = document.createElement('a');
+    a.download = 'edited.png'; a.href = c.toDataURL('image/png'); a.click();
+  });
+
+  /* ---- 去背 ---- */
+  const liveApply = document.getElementById('live-apply');
+  const btnEyedrop = document.getElementById('btn-eyedrop');
+  const btnClearPick = document.getElementById('btn-clear-pick');
+  const pickedSwatch = document.getElementById('picked-swatch');
+  const pickedDot = document.getElementById('picked-dot');
+  const pickedText = document.getElementById('picked-text');
+  const tolInput = document.getElementById('tol');
+  const featherInput = document.getElementById('feather');
+  const spillInput = document.getElementById('spill');
+  const valTol = document.getElementById('val-tol');
+  const valFeather = document.getElementById('val-feather');
+  const passCountHint = document.getElementById('pass-count-hint');
+
+  let pickedColor = null;
+  let eyedropActive = false;
+
+  function previewRemove(){
+    if(!pickedColor){ renderStage(); return; }
+    const base = currentCanvas(); if(!base) return;
+    drawToStage(chromaKey(base, pickedColor, +tolInput.value, +featherInput.value, spillInput.checked));
+  }
+
+  function applyRemovePass(){
+    if(!pickedColor) return;
+    const base = currentCanvas(); if(!base) return;
+    pushState(chromaKey(base, pickedColor, +tolInput.value, +featherInput.value, spillInput.checked));
+    passCount++;
+    passCountHint.textContent = `已套用 ${passCount} 次去背，可繼續調整參數再套用，或重新選色做下一輪。`;
+  }
+
+  tolInput.addEventListener('input', ()=>{ valTol.textContent = tolInput.value; previewRemove(); });
+  featherInput.addEventListener('input', ()=>{ valFeather.textContent = featherInput.value; previewRemove(); });
+  spillInput.addEventListener('change', previewRemove);
+  // 放開滑桿／切換勾選時，若開啟即時套用就自動套用（等同按一次套用鍵）
+  [tolInput, featherInput, spillInput].forEach(inp=>{
+    inp.addEventListener('change', ()=>{ if(liveApply.checked) applyRemovePass(); });
+  });
+
+  btnEyedrop.addEventListener('click', ()=>{ eyedropActive = true; stageCanvas.classList.add('eyedrop-cursor'); });
+  btnClearPick.addEventListener('click', ()=>{ pickedColor = null; pickedSwatch.style.display = 'none'; renderStage(); });
+
+  stageCanvas.addEventListener('click', function(e){
+    if(!eyedropActive) return;
+    const rect = stageCanvas.getBoundingClientRect();
+    const scaleX = stageCanvas.width / rect.width, scaleY = stageCanvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX), y = Math.floor((e.clientY - rect.top) * scaleY);
+    const px = sctx.getImageData(x, y, 1, 1).data;
+    pickedColor = [px[0], px[1], px[2]];
+    pickedSwatch.style.display = 'inline-flex';
+    pickedDot.style.background = `rgb(${pickedColor.join(',')})`;
+    pickedText.textContent = `RGB(${pickedColor.join(', ')})`;
+    eyedropActive = false;
+    stageCanvas.classList.remove('eyedrop-cursor');
+    if(liveApply.checked) applyRemovePass(); else previewRemove();
+  });
+
+  document.getElementById('btn-apply-remove').addEventListener('click', ()=>{
+    if(!pickedColor){ alert('請先用滴管在圖片上點選要去除的顏色。'); return; }
+    applyRemovePass();
+  });
+
+  document.getElementById('btn-undo-remove').addEventListener('click', undoStep);
+  document.getElementById('btn-undo-resize').addEventListener('click', undoStep);
+  document.getElementById('btn-undo-color').addEventListener('click', undoStep);
+  function undoStep(){ if(history.length > 1){ history.pop(); renderStage(); } }
+
+  /* ---- 縮放 ---- */
+  const resizeW = document.getElementById('resize-w');
+  const resizeH = document.getElementById('resize-h');
+  const lockRatio = document.getElementById('lock-ratio');
+  const resizePct = document.getElementById('resize-pct');
+  const valPct = document.getElementById('val-pct');
+  const resizeMode = document.getElementById('resize-mode');
+  let baseAspect = 1, syncingFields = false;
+
+  function syncResizeFields(){
+    const c = currentCanvas(); if(!c) return;
+    baseAspect = c.width / c.height;
+    syncingFields = true;
+    resizeW.value = c.width; resizeH.value = c.height;
+    resizePct.value = 100; valPct.textContent = '100%';
+    syncingFields = false;
+  }
+  resizeW.addEventListener('input', ()=>{ if(!syncingFields && lockRatio.checked){ syncingFields=true; resizeH.value = Math.round(resizeW.value/baseAspect); syncingFields=false; } });
+  resizeH.addEventListener('input', ()=>{ if(!syncingFields && lockRatio.checked){ syncingFields=true; resizeW.value = Math.round(resizeH.value*baseAspect); syncingFields=false; } });
+  resizePct.addEventListener('input', ()=>{
+    valPct.textContent = resizePct.value + '%';
+    const c = currentCanvas(); if(!c) return;
+    syncingFields = true;
+    resizeW.value = Math.round(c.width * resizePct.value/100);
+    resizeH.value = Math.round(c.height * resizePct.value/100);
+    syncingFields = false;
+  });
+  document.getElementById('btn-apply-resize').addEventListener('click', ()=>{
+    const base = currentCanvas(); if(!base) return;
+    const tw = Math.max(1, +resizeW.value), th = Math.max(1, +resizeH.value);
+    pushState((resizeMode.value === 'hq') ? highQualityResize(base, tw, th) : simpleResize(base, tw, th));
+  });
+
+  /* ---- 裁切 ---- */
+  const staticCrop = createCropTool({
+    wrap: canvasWrap,
+    canvas: stageCanvas,
+    xInput: document.getElementById('crop-x'),
+    yInput: document.getElementById('crop-y'),
+    wInput: document.getElementById('crop-w'),
+    hInput: document.getElementById('crop-h'),
+    ratioSelect: document.getElementById('crop-ratio'),
+    btnApply: document.getElementById('btn-crop-apply'),
+    btnReset: document.getElementById('btn-crop-reset'),
+    onApply: (box)=>{
+      const base = currentCanvas(); if(!base) return;
+      pushState(cropCanvasByBox(base, box));
+    }
+  });
+  document.getElementById('static-toolbar').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.tool === 'crop'){
+        if(!currentCanvas()){ alert('請先載入圖片。'); return; }
+        staticCrop.activate();
+      } else {
+        staticCrop.deactivate();
+      }
+    });
+  });
+
+  /* ---- 調色 ---- */
+  const cBright = document.getElementById('c-bright');
+  const cContrast = document.getElementById('c-contrast');
+  const cSat = document.getElementById('c-sat');
+  const cHue = document.getElementById('c-hue');
+  const valBright = document.getElementById('val-bright');
+  const valContrast = document.getElementById('val-contrast');
+  const valSat = document.getElementById('val-sat');
+  const valHue = document.getElementById('val-hue');
+
+  function filterString(){ return `brightness(${cBright.value}%) contrast(${cContrast.value}%) saturate(${cSat.value}%) hue-rotate(${cHue.value}deg)`; }
+  function previewColor(){
+    const base = currentCanvas(); if(!base) return;
+    stageCanvas.width = base.width; stageCanvas.height = base.height;
+    sctx.clearRect(0,0,base.width,base.height);
+    sctx.save(); sctx.filter = filterString(); sctx.drawImage(base,0,0); sctx.restore();
+  }
+  function resetColorSliders(){
+    [cBright,cContrast,cSat].forEach(i=> i.value = 100); cHue.value = 0;
+    valBright.textContent='100%'; valContrast.textContent='100%'; valSat.textContent='100%'; valHue.textContent='0°';
+  }
+  function applyColorPass(){
+    const base = currentCanvas(); if(!base) return;
+    const out = document.createElement('canvas');
+    out.width = base.width; out.height = base.height;
+    const octx = out.getContext('2d');
+    octx.filter = filterString(); octx.drawImage(base, 0, 0);
+    pushState(out);
+    resetColorSliders();
+  }
+  [cBright,cContrast,cSat,cHue].forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      valBright.textContent = cBright.value+'%'; valContrast.textContent = cContrast.value+'%';
+      valSat.textContent = cSat.value+'%'; valHue.textContent = cHue.value+'°';
+      previewColor();
+    });
+    // 放開滑桿時，若開啟即時套用就自動套用（等同按一次套用鍵）
+    inp.addEventListener('change', ()=>{ if(liveApply.checked) applyColorPass(); });
+  });
+  document.getElementById('btn-apply-color').addEventListener('click', applyColorPass);
+  document.getElementById('btn-reset-color').addEventListener('click', ()=>{
+    resetColorSliders();
+    previewColor();
+  });
+
+  /* ---- 轉 SVG（向量化描圖，使用 ImageTracer.js） ---- */
+  const svgPreviewImg = document.getElementById('svg-preview-img');
+  const svgColorsInput = document.getElementById('svg-colors');
+  const svgLtresInput = document.getElementById('svg-ltres');
+  const svgQtresInput = document.getElementById('svg-qtres');
+  const svgRightangleInput = document.getElementById('svg-rightangle');
+  const svgScaleInput = document.getElementById('svg-scale');
+  const svgNoiseInput = document.getElementById('svg-noise');
+  const svgFillOverrideInput = document.getElementById('svg-fill-override');
+  const svgFillColorInput = document.getElementById('svg-fill-color');
+  const svgFillOpacityInput = document.getElementById('svg-fill-opacity');
+  const svgStrokeOverrideInput = document.getElementById('svg-stroke-override');
+  const svgStrokeColorInput = document.getElementById('svg-stroke-color');
+  const svgStrokeWidthInput = document.getElementById('svg-stroke-width');
+  const valSvgColors = document.getElementById('val-svg-colors');
+  const valSvgLtres = document.getElementById('val-svg-ltres');
+  const valSvgQtres = document.getElementById('val-svg-qtres');
+  const valSvgScale = document.getElementById('val-svg-scale');
+  const valSvgFillOp = document.getElementById('val-svg-fill-op');
+  const valSvgStrokeW = document.getElementById('val-svg-stroke-w');
+  const svgStats = document.getElementById('svg-stats');
+  const btnSvgPreview = document.getElementById('btn-svg-preview');
+  const btnSvgToggle = document.getElementById('btn-svg-toggle');
+  const btnSvgDownload = document.getElementById('btn-svg-download');
+
+  let lastSvgString = null;
+  let lastSvgUrl = null;
+  let showingSvg = false;
+
+  svgColorsInput.addEventListener('input', ()=> valSvgColors.textContent = svgColorsInput.value);
+  svgLtresInput.addEventListener('input', ()=> valSvgLtres.textContent = (+svgLtresInput.value).toFixed(1));
+  svgQtresInput.addEventListener('input', ()=> valSvgQtres.textContent = (+svgQtresInput.value).toFixed(1));
+  svgScaleInput.addEventListener('input', ()=> valSvgScale.textContent = svgScaleInput.value + 'x');
+  svgFillOpacityInput.addEventListener('input', ()=> valSvgFillOp.textContent = svgFillOpacityInput.value + '%');
+  svgStrokeWidthInput.addEventListener('input', ()=> valSvgStrokeW.textContent = svgStrokeWidthInput.value);
+
+  // 對 ImageTracer 產生的 SVG 字串做染色後處理：統一填色／加上邊框
+  function applySvgRecolor(svgString){
+    const doFill = svgFillOverrideInput.checked;
+    const doStroke = svgStrokeOverrideInput.checked;
+    if(!doFill && !doStroke) return svgString;
+    const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+    const parserError = doc.querySelector('parsererror');
+    if(parserError) return svgString; // 解析失敗就原樣回傳，不套用染色
+    const paths = doc.querySelectorAll('path');
+    if(doFill){
+      const fillColor = svgFillColorInput.value;
+      const fillOpacity = (+svgFillOpacityInput.value) / 100;
+      paths.forEach(p=>{
+        p.setAttribute('fill', fillColor);
+        p.setAttribute('fill-opacity', String(fillOpacity));
+      });
+    }
+    if(doStroke){
+      const strokeColor = svgStrokeColorInput.value;
+      const strokeWidth = svgStrokeWidthInput.value;
+      paths.forEach(p=>{
+        p.setAttribute('stroke', strokeColor);
+        p.setAttribute('stroke-width', strokeWidth);
+      });
+    }
+    return new XMLSerializer().serializeToString(doc.documentElement);
+  }
+
+  function resetSvgPreviewState(){
+    if(!lastSvgString && !showingSvg) return;
+    lastSvgString = null;
+    if(lastSvgUrl){ URL.revokeObjectURL(lastSvgUrl); lastSvgUrl = null; }
+    showingSvg = false;
+    svgPreviewImg.style.display = 'none';
+    svgPreviewImg.removeAttribute('src');
+    btnSvgToggle.disabled = true;
+    btnSvgDownload.disabled = true;
+    svgStats.textContent = '';
+  }
+  // Any new load / edit / undo invalidates a previously generated SVG preview (renderStage
+  // is the common path for all of those), so wrap it rather than each individual handler.
+  const _origRenderStage = renderStage;
+  renderStage = function(){ resetSvgPreviewState(); _origRenderStage(); };
+
+  btnSvgPreview.addEventListener('click', ()=>{
+    if(!currentCanvas()){ alert('請先載入圖片。'); return; }
+    generateSvgPreview();
+  });
+
+  function generateSvgPreview(){
+    const base = currentCanvas();
+    if(!base) return;
+    if(typeof ImageTracer === 'undefined'){
+      alert('SVG 轉換所需的元件（ImageTracer.js）尚未載入完成，請確認網路連線後重新整理頁面再試一次。');
+      return;
+    }
+    btnSvgPreview.disabled = true;
+    svgStats.textContent = '轉換中，請稍候…（圖片越大或顏色越多，需要的時間越久）';
+    setTimeout(()=>{
+      try{
+        const bctx = base.getContext('2d', {willReadFrequently:true});
+        const imgData = bctx.getImageData(0,0,base.width,base.height);
+        const opts = {
+          numberofcolors: +svgColorsInput.value,
+          ltres: Math.max(0.01, +svgLtresInput.value),   // 直線擬合誤差門檻：只影響直邊
+          qtres: Math.max(0.01, +svgQtresInput.value),   // 曲線擬合誤差門檻：只影響弧形，與直線分開避免弧形被拉直變菱角
+          rightangleenhance: svgRightangleInput.checked,
+          pathomit: svgNoiseInput.checked ? 12 : 0,
+          scale: +svgScaleInput.value,
+          roundcoords: 1,
+          viewbox: true,
+          strokewidth: 0
+        };
+        const svgStr = applySvgRecolor(ImageTracer.imagedataToSVG(imgData, opts));
+        lastSvgString = svgStr;
+        if(lastSvgUrl) URL.revokeObjectURL(lastSvgUrl);
+        const blob = new Blob([svgStr], {type:'image/svg+xml'});
+        lastSvgUrl = URL.createObjectURL(blob);
+        svgPreviewImg.src = lastSvgUrl;
+        showingSvg = true;
+        stageCanvas.style.display = 'none';
+        svgPreviewImg.style.display = 'block';
+        btnSvgToggle.disabled = false;
+        btnSvgDownload.disabled = false;
+        const pathCount = (svgStr.match(/<path /g) || []).length;
+        svgStats.textContent = `完成：約 ${pathCount} 條路徑，檔案大小 ${formatBytes(blob.size)}（原圖點陣大小僅供參考，向量檔實際大小依圖片複雜度而定）。`;
+      }catch(err){
+        console.error(err);
+        svgStats.textContent = '轉換失敗：' + (err && err.message ? err.message : '未知錯誤');
+      }finally{
+        btnSvgPreview.disabled = false;
+      }
+    }, 20);
+  }
+
+  // 面板內所有控制項：放開滑桿／切換選項時，若開啟即時套用且已有圖片，自動重新產生 SVG 預覽
+  [svgColorsInput, svgLtresInput, svgQtresInput, svgRightangleInput, svgScaleInput, svgNoiseInput,
+   svgFillOverrideInput, svgFillColorInput, svgFillOpacityInput,
+   svgStrokeOverrideInput, svgStrokeColorInput, svgStrokeWidthInput].forEach(inp=>{
+    inp.addEventListener('change', ()=>{ if(liveApply.checked && currentCanvas()) generateSvgPreview(); });
+  });
+
+  btnSvgToggle.addEventListener('click', ()=>{
+    if(!lastSvgString) return;
+    showingSvg = !showingSvg;
+    stageCanvas.style.display = showingSvg ? 'none' : 'block';
+    svgPreviewImg.style.display = showingSvg ? 'block' : 'none';
+  });
+
+  btnSvgDownload.addEventListener('click', ()=>{
+    if(!lastSvgUrl) return;
+    const a = document.createElement('a');
+    a.download = 'edited.svg'; a.href = lastSvgUrl; a.click();
+  });
+})();
+
+/* =========================================================================
+   GIF CODEC (hand-written)
+   ========================================================================= */
+const GifCodec = (function(){
+  function lzwDecode(minCodeSize, data, pixelCount){
+    const clearCode = 1 << minCodeSize;
+    const eoiCode = clearCode + 1;
+    let codeSize, nextCode, dict;
+    function resetDict(){
+      codeSize = minCodeSize + 1; nextCode = eoiCode + 1;
+      dict = new Array(4096);
+      for(let i=0;i<clearCode;i++) dict[i] = [i];
+      dict[clearCode] = []; dict[eoiCode] = null;
+    }
+    resetDict();
+    const output = new Uint8Array(pixelCount);
+    let outputIndex = 0, bitBuffer = 0, bitsInBuffer = 0, dataIndex = 0, prevCode = null;
+    function readCode(){
+      while(bitsInBuffer < codeSize){
+        if(dataIndex >= data.length) return eoiCode;
+        bitBuffer |= data[dataIndex++] << bitsInBuffer; bitsInBuffer += 8;
+      }
+      const code = bitBuffer & ((1<<codeSize)-1);
+      bitBuffer >>= codeSize; bitsInBuffer -= codeSize;
+      return code;
+    }
+    while(outputIndex < pixelCount){
+      const code = readCode();
+      if(code === clearCode){ resetDict(); prevCode = null; continue; }
+      if(code === eoiCode) break;
+      let entry;
+      if(dict[code]) entry = dict[code];
+      else if(code === nextCode && prevCode !== null) entry = dict[prevCode].concat([dict[prevCode][0]]);
+      else break;
+      for(let i=0;i<entry.length && outputIndex<pixelCount;i++) output[outputIndex++] = entry[i];
+      if(prevCode !== null && nextCode < 4096){
+        dict[nextCode] = dict[prevCode].concat([entry[0]]);
+        nextCode++;
+        if(nextCode === (1<<codeSize) && codeSize < 12) codeSize++;
+      }
+      prevCode = code;
+    }
+    return output;
+  }
+
+  function deinterlace(indices, w, h){
+    const output = new Uint8Array(w*h);
+    const passes = [{start:0,step:8},{start:4,step:8},{start:2,step:4},{start:1,step:2}];
+    let srcRow = 0;
+    for(const pass of passes){
+      for(let row = pass.start; row < h; row += pass.step){
+        output.set(indices.subarray(srcRow*w, srcRow*w+w), row*w);
+        srcRow++;
+      }
+    }
+    return output;
+  }
+
+  function parse(buffer){
+    const data = new Uint8Array(buffer);
+    let p = 0;
+    function readByte(){ return data[p++]; }
+    function readBytes(n){ const s = data.subarray(p,p+n); p+=n; return s; }
+    function readU16(){ const v = data[p] | (data[p+1]<<8); p+=2; return v; }
+    p = 6;
+    const width = readU16(), height = readU16();
+    const packed = readByte();
+    const gctFlag = (packed & 0x80) !== 0;
+    const gctSize = 2 << (packed & 0x07);
+    readByte(); readByte();
+    let globalColorTable = null;
+    if(gctFlag){ globalColorTable = []; for(let i=0;i<gctSize;i++) globalColorTable.push([readByte(),readByte(),readByte()]); }
+    const frames = [];
+    let gcExt = null;
+    while(p < data.length){
+      const block = readByte();
+      if(block === 0x21){
+        const label = readByte();
+        if(label === 0xF9){
+          readByte();
+          const packedGC = readByte();
+          const delayRaw = readU16();
+          const transparentIndex = readByte();
+          readByte();
+          gcExt = { disposalType: (packedGC>>2)&0x07, transparentColorFlag: (packedGC&0x01)!==0, delay: delayRaw*10, transparentIndex };
+        } else {
+          let sub; while((sub = readByte()) !== 0) p += sub;
+        }
+      } else if(block === 0x2C){
+        const left = readU16(), top = readU16(), w = readU16(), h = readU16();
+        const packedID = readByte();
+        const lctFlag = (packedID & 0x80) !== 0;
+        const interlaced = (packedID & 0x40) !== 0;
+        const lctSize = 2 << (packedID & 0x07);
+        let colorTable = globalColorTable;
+        if(lctFlag){ colorTable = []; for(let i=0;i<lctSize;i++) colorTable.push([readByte(),readByte(),readByte()]); }
+        const minCodeSize = readByte();
+        const bytes = [];
+        let sub; while((sub = readByte()) !== 0){ for(let i=0;i<sub;i++) bytes.push(readByte()); }
+        const indices = lzwDecode(minCodeSize, bytes, w*h);
+        const finalIndices = interlaced ? deinterlace(indices, w, h) : indices;
+        frames.push({ left, top, width:w, height:h,
+          disposalType: gcExt ? gcExt.disposalType : 0,
+          delay: gcExt ? (gcExt.delay || 100) : 100,
+          transparentIndex: (gcExt && gcExt.transparentColorFlag) ? gcExt.transparentIndex : -1,
+          colorTable, indices: finalIndices });
+        gcExt = null;
+      } else if(block === 0x3B){ break; } else { break; }
+    }
+    return {width, height, frames};
+  }
+
+  function frameToCanvas(frame){
+    const {width,height,indices,colorTable,transparentIndex} = frame;
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(width,height);
+    const d = imgData.data;
+    for(let i=0;i<indices.length;i++){
+      const idx = indices[i], o = i*4;
+      if(idx === transparentIndex){ d[o+3]=0; }
+      else { const c = colorTable && colorTable[idx] ? colorTable[idx] : [0,0,0]; d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=255; }
+    }
+    ctx.putImageData(imgData,0,0);
+    return canvas;
+  }
+
+  function decode(buffer){
+    const gif = parse(buffer);
+    const W = gif.width, H = gif.height;
+    const composite = document.createElement('canvas');
+    composite.width = W; composite.height = H;
+    const cctx = composite.getContext('2d');
+    let pendingDisposal = 0, pendingRect = null, savedBeforeDraw = null;
+    const outFrames = [];
+    for(const frame of gif.frames){
+      if(pendingDisposal === 2 && pendingRect){ cctx.clearRect(pendingRect.left, pendingRect.top, pendingRect.width, pendingRect.height); }
+      else if(pendingDisposal === 3 && savedBeforeDraw){ cctx.putImageData(savedBeforeDraw, 0, 0); }
+      if(frame.disposalType === 3){ savedBeforeDraw = cctx.getImageData(0,0,W,H); }
+      const patch = frameToCanvas(frame);
+      cctx.drawImage(patch, frame.left, frame.top);
+      const snap = document.createElement('canvas');
+      snap.width = W; snap.height = H;
+      snap.getContext('2d').drawImage(composite,0,0);
+      outFrames.push({canvas: snap, delay: frame.delay || 100});
+      pendingDisposal = frame.disposalType;
+      pendingRect = {left:frame.left, top:frame.top, width:frame.width, height:frame.height};
+    }
+    return {width: W, height: H, frames: outFrames};
+  }
+
+  let workerBlobUrlPromise = null;
+  function getWorkerScriptUrl(){
+    if(!workerBlobUrlPromise){
+      workerBlobUrlPromise = fetch('https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js')
+        .then(r=>r.blob()).then(blob=> URL.createObjectURL(blob));
+    }
+    return workerBlobUrlPromise;
+  }
+
+  function pickTransparentKey(frames){
+    const used = new Set();
+    const step = 4*7; // sample every 7th pixel for speed
+    frames.forEach(f=>{
+      const {canvas} = f;
+      const data = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+      for(let i=0;i<data.length;i+=step){
+        if(data[i+3] > 10) used.add(data[i]+','+data[i+1]+','+data[i+2]);
+      }
+    });
+    const candidates = [[0,255,0],[255,0,255],[0,255,255],[255,0,0],[0,0,255],[255,255,0],[1,2,3],[254,1,254],[3,255,3]];
+    for(const c of candidates){ if(!used.has(c.join(','))) return c; }
+    for(let tries=0; tries<80; tries++){
+      const c = [Math.floor(Math.random()*256), Math.floor(Math.random()*256), Math.floor(Math.random()*256)];
+      if(!used.has(c.join(','))) return c;
+    }
+    return [0,255,0];
+  }
+
+  function keyOutAlpha(canvas, key){
+    const out = cloneCanvas(canvas);
+    const ctx = out.getContext('2d');
+    const id = ctx.getImageData(0,0,out.width,out.height);
+    const d = id.data;
+    for(let i=0;i<d.length;i+=4){
+      if(d[i+3] < 128){ d[i]=key[0]; d[i+1]=key[1]; d[i+2]=key[2]; d[i+3]=255; }
+      else d[i+3] = 255;
+    }
+    ctx.putImageData(id,0,0);
+    return out;
+  }
+
+  async function encode(frames, quality, onProgress, transparentKey){
+    const workerScript = await getWorkerScriptUrl();
+    return new Promise((resolve, reject)=>{
+      const opts = { workers: 2, quality: quality || 10, workerScript };
+      if(transparentKey){
+        opts.transparent = (transparentKey[0]<<16) | (transparentKey[1]<<8) | transparentKey[2];
+      }
+      const encoder = new GIF(opts);
+      frames.forEach(f=>{
+        const canvas = transparentKey ? keyOutAlpha(f.canvas, transparentKey) : f.canvas;
+        encoder.addFrame(canvas, {delay: f.delay, copy:true});
+      });
+      encoder.on('progress', p=> onProgress && onProgress(p));
+      encoder.on('finished', blob=> resolve(blob));
+      encoder.on('abort', ()=> reject(new Error('GIF 編碼中止')));
+      encoder.render();
+    });
+  }
+  return {decode, encode, pickTransparentKey};
+})();
+
+/* =========================================================================
+   APNG / PNG CODEC (native CompressionStream / DecompressionStream)
+   ========================================================================= */
+const ApngCodec = (function(){
+  const SIG = Uint8Array.of(137,80,78,71,13,10,26,10);
+  function u32be(n){ return Uint8Array.of((n>>>24)&255,(n>>>16)&255,(n>>>8)&255,n&255); }
+  function u16be(n){ return Uint8Array.of((n>>>8)&255, n&255); }
+  function concat(arrs){ let len=0; arrs.forEach(a=>len+=a.length); const out=new Uint8Array(len); let off=0; arrs.forEach(a=>{out.set(a,off); off+=a.length;}); return out; }
+
+  let crcTable = null;
+  function crc32(bytes){
+    if(!crcTable){
+      crcTable = new Uint32Array(256);
+      for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); crcTable[n]=c>>>0; }
+    }
+    let crc = 0xFFFFFFFF;
+    for(let i=0;i<bytes.length;i++) crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function makeChunk(type, dataBytes){
+    const typeBytes = new TextEncoder().encode(type);
+    const crcInput = concat([typeBytes, dataBytes]);
+    return concat([u32be(dataBytes.length), typeBytes, dataBytes, u32be(crc32(crcInput))]);
+  }
+  async function deflateZlib(bytes){
+    const cs = new CompressionStream('deflate');
+    const writer = cs.writable.getWriter(); writer.write(bytes); writer.close();
+    const chunks=[]; const reader=cs.readable.getReader();
+    while(true){ const {done,value}=await reader.read(); if(done) break; chunks.push(value); }
+    return concat(chunks);
+  }
+  async function inflateZlib(bytes){
+    const ds = new DecompressionStream('deflate');
+    const writer = ds.writable.getWriter(); writer.write(bytes); writer.close();
+    const chunks=[]; const reader=ds.readable.getReader();
+    while(true){ const {done,value}=await reader.read(); if(done) break; chunks.push(value); }
+    return concat(chunks);
+  }
+  function paeth(a,b,c){ const p=a+b-c, pa=Math.abs(p-a), pb=Math.abs(p-b), pc=Math.abs(p-c); if(pa<=pb && pa<=pc) return a; if(pb<=pc) return b; return c; }
+  function unfilter(raw, w, h, channels){
+    const bpp = channels, rowBytes = 1 + w*channels;
+    const out = new Uint8Array(w*h*channels);
+    let prevRow = new Uint8Array(w*channels);
+    for(let y=0;y<h;y++){
+      const filterType = raw[y*rowBytes];
+      const cur = raw.slice(y*rowBytes+1, y*rowBytes+1+w*channels);
+      for(let i=0;i<cur.length;i++){
+        const a = i>=bpp ? cur[i-bpp] : 0, b = prevRow[i], c = i>=bpp ? prevRow[i-bpp] : 0;
+        let recon = cur[i];
+        if(filterType===1) recon = cur[i]+a;
+        else if(filterType===2) recon = cur[i]+b;
+        else if(filterType===3) recon = cur[i]+Math.floor((a+b)/2);
+        else if(filterType===4) recon = cur[i]+paeth(a,b,c);
+        cur[i] = recon & 0xFF;
+      }
+      out.set(cur, y*w*channels);
+      prevRow = cur;
+    }
+    return out;
+  }
+  function toRGBA(unfiltered, w, h, colorType, palette, trns){
+    const out = new Uint8ClampedArray(w*h*4);
+    if(colorType===6){ out.set(unfiltered); }
+    else if(colorType===2){ for(let i=0,j=0;i<w*h;i++,j+=3){ out[i*4]=unfiltered[j]; out[i*4+1]=unfiltered[j+1]; out[i*4+2]=unfiltered[j+2]; out[i*4+3]=255; } }
+    else if(colorType===0){ for(let i=0;i<w*h;i++){ const g=unfiltered[i]; out[i*4]=g; out[i*4+1]=g; out[i*4+2]=g; out[i*4+3]=255; } }
+    else if(colorType===4){ for(let i=0,j=0;i<w*h;i++,j+=2){ const g=unfiltered[j]; out[i*4]=g; out[i*4+1]=g; out[i*4+2]=g; out[i*4+3]=unfiltered[j+1]; } }
+    else if(colorType===3){ for(let i=0;i<w*h;i++){ const idx=unfiltered[i]; const c=(palette&&palette[idx])||[0,0,0]; out[i*4]=c[0]; out[i*4+1]=c[1]; out[i*4+2]=c[2]; out[i*4+3]=(trns&&idx<trns.length)?trns[idx]:255; } }
+    return out;
+  }
+
+  async function decode(buffer){
+    const data = new Uint8Array(buffer);
+    for(let i=0;i<8;i++){ if(data[i] !== SIG[i]) throw new Error('not a png'); }
+    let p = 8;
+    function u32(off){ return ((data[off]<<24)|(data[off+1]<<16)|(data[off+2]<<8)|data[off+3])>>>0; }
+    let width=0,height=0,bitDepth=8,colorType=6,interlace=0, palette=null, trns=null;
+    const frameDescs = []; let currentFrame = null; const defaultImageChunks = [];
+    let sawIDAT = false, sawFcTLBeforeIDAT = false;
+
+    while(p < data.length){
+      const length = u32(p); p += 4;
+      const type = String.fromCharCode(data[p],data[p+1],data[p+2],data[p+3]); p += 4;
+      const start = p;
+      if(type === 'IHDR'){ width=u32(start); height=u32(start+4); bitDepth=data[start+8]; colorType=data[start+9]; interlace=data[start+12]; }
+      else if(type === 'PLTE'){ palette=[]; for(let i=0;i<length;i+=3) palette.push([data[start+i],data[start+i+1],data[start+i+2]]); }
+      else if(type === 'tRNS'){ trns = data.slice(start, start+length); }
+      else if(type === 'fcTL'){
+        if(!sawIDAT) sawFcTLBeforeIDAT = true;
+        if(currentFrame) frameDescs.push(currentFrame);
+        currentFrame = { width:u32(start+4), height:u32(start+8), xOffset:u32(start+12), yOffset:u32(start+16),
+          delayNum:(data[start+20]<<8)|data[start+21], delayDen:(data[start+22]<<8)|data[start+23],
+          disposeOp:data[start+24], blendOp:data[start+25], chunks:[] };
+      } else if(type === 'IDAT'){
+        sawIDAT = true;
+        if(currentFrame && currentFrame.chunks.length === 0 && sawFcTLBeforeIDAT && frameDescs.indexOf(currentFrame) === -1){
+          currentFrame.chunks.push(data.slice(start, start+length));
+        } else { defaultImageChunks.push(data.slice(start, start+length)); }
+      } else if(type === 'fdAT'){
+        if(currentFrame) currentFrame.chunks.push(data.slice(start+4, start+length));
+      } else if(type === 'IEND'){ if(currentFrame) frameDescs.push(currentFrame); p = start+length+4; break; }
+      p = start + length + 4;
+    }
+    if(interlace !== 0) throw new Error('不支援交錯式 (interlaced) PNG');
+    if(bitDepth !== 8) throw new Error('目前只支援 8-bit 色深的 PNG/APNG');
+    if(frameDescs.length === 0){ frameDescs.push({width,height,xOffset:0,yOffset:0,delayNum:100,delayDen:1000,disposeOp:0,blendOp:0,chunks:defaultImageChunks}); }
+
+    const channels = {0:1,2:3,3:1,4:2,6:4}[colorType];
+    const full = document.createElement('canvas'); full.width=width; full.height=height;
+    const fctx = full.getContext('2d');
+    let savedBeforeDraw = null;
+    const outFrames = [];
+    for(const fd of frameDescs){
+      const compressed = concat(fd.chunks);
+      const raw = await inflateZlib(compressed);
+      const unfiltered = unfilter(raw, fd.width, fd.height, channels);
+      const rgba = toRGBA(unfiltered, fd.width, fd.height, colorType, palette, trns);
+      const patchCanvas = document.createElement('canvas');
+      patchCanvas.width = fd.width; patchCanvas.height = fd.height;
+      patchCanvas.getContext('2d').putImageData(new ImageData(rgba, fd.width, fd.height), 0, 0);
+      if(fd.disposeOp === 2){ savedBeforeDraw = fctx.getImageData(fd.xOffset, fd.yOffset, fd.width, fd.height); } else { savedBeforeDraw = null; }
+      if(fd.blendOp === 0){ fctx.clearRect(fd.xOffset, fd.yOffset, fd.width, fd.height); }
+      fctx.drawImage(patchCanvas, fd.xOffset, fd.yOffset);
+      const snap = document.createElement('canvas'); snap.width=width; snap.height=height;
+      snap.getContext('2d').drawImage(full, 0, 0);
+      const delayMs = ((fd.delayDen === 0 ? fd.delayNum/100 : fd.delayNum/fd.delayDen) * 1000) || 100;
+      outFrames.push({canvas: snap, delay: delayMs});
+      if(fd.disposeOp === 1){ fctx.clearRect(fd.xOffset, fd.yOffset, fd.width, fd.height); }
+      else if(fd.disposeOp === 2 && savedBeforeDraw){ fctx.putImageData(savedBeforeDraw, fd.xOffset, fd.yOffset); }
+    }
+    return {width, height, frames: outFrames};
+  }
+
+  function rawFromCanvas(canvas){
+    const ctx = canvas.getContext('2d');
+    const {width,height} = canvas;
+    const imgData = ctx.getImageData(0,0,width,height).data;
+    const rowBytes = 1 + width*4;
+    const raw = new Uint8Array(rowBytes*height);
+    for(let y=0;y<height;y++){ raw[y*rowBytes]=0; raw.set(imgData.subarray(y*width*4, y*width*4+width*4), y*rowBytes+1); }
+    return raw;
+  }
+
+  async function encode(frames, onProgress){
+    const width = frames[0].canvas.width, height = frames[0].canvas.height;
+    const chunks = [SIG];
+    chunks.push(makeChunk('IHDR', concat([u32be(width), u32be(height), Uint8Array.of(8,6,0,0,0)])));
+    chunks.push(makeChunk('acTL', concat([u32be(frames.length), u32be(0)])));
+    let seq = 0;
+    for(let i=0;i<frames.length;i++){
+      const f = frames[i];
+      const raw = rawFromCanvas(f.canvas);
+      const compressed = await deflateZlib(raw);
+      const delayMs = Math.max(10, Math.round(f.delay));
+      const fcTLData = concat([u32be(seq++), u32be(width), u32be(height), u32be(0), u32be(0), u16be(delayMs), u16be(1000), Uint8Array.of(0,0)]);
+      chunks.push(makeChunk('fcTL', fcTLData));
+      if(i===0){ chunks.push(makeChunk('IDAT', compressed)); }
+      else { chunks.push(makeChunk('fdAT', concat([u32be(seq++), compressed]))); }
+      onProgress && onProgress((i+1)/frames.length);
+    }
+    chunks.push(makeChunk('IEND', new Uint8Array(0)));
+    return new Blob(chunks, {type:'image/png'});
+  }
+  return {decode, encode};
+})();
+
+/* =========================================================================
+   ANIMATED TAB
+   ========================================================================= */
+(function animTab(){
+  const fileInput = document.getElementById('anim-file-input');
+  const insertFrameInput = document.getElementById('insert-frame-input');
+  const emptyEl = document.getElementById('anim-empty');
+  const animCanvasWrap = document.getElementById('anim-canvas-wrap');
+  const previewCanvas = document.getElementById('anim-preview-canvas');
+  const pctx = previewCanvas.getContext('2d');
+  const infoEl = document.getElementById('anim-info');
+  const dimsLabel = document.getElementById('anim-dims-label');
+  const frameCountBadge = document.getElementById('anim-frame-count');
+  const formatBadge = document.getElementById('anim-format-badge');
+  const frameStrip = document.getElementById('anim-frame-strip');
+
+  let sourceFrames = [];
+  let srcW = 0, srcH = 0;
+  let previewTimer = null;
+  let previewIndex = 0;
+
+  const animCrop = createCropTool({
+    wrap: animCanvasWrap,
+    canvas: previewCanvas,
+    xInput: document.getElementById('crop-x-anim'),
+    yInput: document.getElementById('crop-y-anim'),
+    wInput: document.getElementById('crop-w-anim'),
+    hInput: document.getElementById('crop-h-anim'),
+    ratioSelect: document.getElementById('crop-ratio-anim'),
+    btnApply: document.getElementById('btn-crop-apply-anim'),
+    btnReset: document.getElementById('btn-crop-reset-anim'),
+    onApply: (box)=>{
+      if(sourceFrames.length === 0) return;
+      sourceFrames = sourceFrames.map(f=> ({canvas: cropCanvasByBox(f.canvas, box), delay: f.delay}));
+      srcW = Math.max(1, Math.round(box.w)); srcH = Math.max(1, Math.round(box.h));
+      dimsLabel.textContent = srcW + ' × ' + srcH + ' px';
+      buildFrameStrip();
+      startPreviewLoop();
+    }
+  });
+  document.getElementById('anim-toolbar').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.dataset.tool === 'anim-crop'){
+        if(sourceFrames.length === 0){ alert('請先載入或建立動畫。'); return; }
+        if(previewTimer){ clearInterval(previewTimer); previewTimer = null; }
+        const raw = sourceFrames[previewIndex].canvas;
+        previewCanvas.width = raw.width; previewCanvas.height = raw.height;
+        pctx.clearRect(0,0,raw.width,raw.height);
+        pctx.drawImage(raw,0,0);
+        animCrop.activate();
+      } else {
+        animCrop.deactivate();
+        if(sourceFrames.length && !previewTimer) startPreviewLoop();
+      }
+    });
+  });
+
+  document.getElementById('btn-load-anim').addEventListener('click', ()=> fileInput.click());
+  emptyEl.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', e=>{ if(e.target.files[0]) loadAnimFile(e.target.files[0]); e.target.value=''; });
+
+  document.getElementById('btn-insert-frame').addEventListener('click', ()=> insertFrameInput.click());
+  insertFrameInput.addEventListener('change', e=>{
+    if(e.target.files[0]) insertFrameFromImageFile(e.target.files[0], sourceFrames.length ? previewIndex : null);
+    e.target.value = '';
+  });
+
+  document.addEventListener('drop', async e=>{
+    if(wrapAnim.style.display === 'none') return;
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(!file) return;
+    const fmt = await detectFormat(file);
+    if(fmt === 'gif' || fmt === 'png'){
+      if(sourceFrames.length === 0){ loadAnimFile(file); return; }
+      const replace = confirm('要用這個檔案取代目前的動畫嗎？\n選「取消」則會把它加入為新的一格畫面。');
+      if(replace) loadAnimFile(file); else insertFrameFromImageFile(file, previewIndex);
+    } else if(file.type.startsWith('image/')){
+      insertFrameFromImageFile(file, sourceFrames.length ? previewIndex : null);
+    }
+  });
+
+  async function loadAnimFile(file){
+    infoEl.textContent = '解析中...';
+    try{
+      const fmt = await detectFormat(file);
+      const buf = await file.arrayBuffer();
+      let result;
+      if(fmt === 'gif'){ result = GifCodec.decode(buf); formatBadge.textContent = 'GIF'; }
+      else if(fmt === 'png'){
+        if(typeof CompressionStream === 'undefined' || typeof DecompressionStream === 'undefined'){
+          infoEl.textContent = '這個瀏覽器不支援 APNG 所需的壓縮串流 API，請改用較新版本的瀏覽器。';
+          return;
+        }
+        result = await ApngCodec.decode(buf);
+        formatBadge.textContent = result.frames.length > 1 ? 'APNG' : 'PNG（單張）';
+      } else { infoEl.textContent = '無法辨識的檔案格式，請上傳 GIF 或 PNG/APNG。'; return; }
+
+      sourceFrames = result.frames;
+      srcW = result.width; srcH = result.height;
+      previewIndex = 0;
+      infoEl.textContent = file.name;
+      dimsLabel.textContent = srcW + ' × ' + srcH + ' px';
+      frameCountBadge.textContent = sourceFrames.length + ' 格';
+      emptyEl.style.display = 'none';
+      previewCanvas.style.display = 'block';
+      previewCanvas.width = srcW; previewCanvas.height = srcH;
+      buildFrameStrip();
+      startPreviewLoop();
+    }catch(err){
+      console.error(err);
+      infoEl.textContent = '解析失敗：' + (err && err.message ? err.message : '不明的檔案內容或編碼方式。');
+    }
+  }
+
+  async function insertFrameFromImageFile(file, atIndex){
+    const img = await loadImageElement(file);
+    if(sourceFrames.length === 0){
+      srcW = img.naturalWidth; srcH = img.naturalHeight;
+      dimsLabel.textContent = srcW + ' × ' + srcH + ' px';
+      formatBadge.textContent = 'GIF';
+      infoEl.textContent = '手動建立的新動畫';
+      emptyEl.style.display = 'none';
+      previewCanvas.style.display = 'block';
+      previewCanvas.width = srcW; previewCanvas.height = srcH;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = srcW; canvas.height = srcH;
+    const ctx = canvas.getContext('2d');
+    const scale = Math.max(srcW/img.naturalWidth, srcH/img.naturalHeight);
+    const dw = img.naturalWidth*scale, dh = img.naturalHeight*scale;
+    ctx.drawImage(img, (srcW-dw)/2, (srcH-dh)/2, dw, dh);
+    const insertAt = (atIndex == null) ? sourceFrames.length : atIndex + 1;
+    sourceFrames.splice(insertAt, 0, {canvas, delay: 200});
+    previewIndex = insertAt;
+    if(!previewTimer) startPreviewLoop();
+    refreshAfterFrameEdit();
+  }
+
+  /* ---- 影片轉動圖 ---- */
+  const videoFileInput = document.getElementById('video-file-input');
+  const videoStatus = document.getElementById('video-status');
+  const videoProgress = document.getElementById('video-progress');
+  const videoPreviewEl = document.getElementById('video-preview');
+  const videoPreviewArea = document.getElementById('video-preview-area');
+  const videoStartInput = document.getElementById('video-start');
+  const videoEndInput = document.getElementById('video-end');
+  const videoSizeMode = document.getElementById('video-size-mode');
+  const videoCustomWField = document.getElementById('video-custom-w-field');
+  let pendingVideoFile = null;
+
+  function parseTimeStr(str){
+    if(str == null) return 0;
+    str = String(str).trim();
+    if(str === '') return 0;
+    if(str.includes(':')){
+      const parts = str.split(':').map(p=> parseFloat(p));
+      let sec = 0;
+      for(const p of parts){ sec = sec*60 + (isNaN(p) ? 0 : p); }
+      return sec;
+    }
+    const v = parseFloat(str);
+    return isNaN(v) ? 0 : v;
+  }
+  function formatTimeStr(sec){
+    sec = Math.max(0, sec || 0);
+    const m = Math.floor(sec/60);
+    const s = Math.floor(sec - m*60);
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  function resolveVideoWidth(nativeW){
+    const mode = videoSizeMode.value;
+    if(mode === 'original') return nativeW;
+    if(mode === 'custom') return Math.max(64, +document.getElementById('video-maxw').value || 480);
+    return Math.min(nativeW, +mode);
+  }
+  videoSizeMode.addEventListener('change', ()=>{
+    videoCustomWField.style.display = (videoSizeMode.value === 'custom') ? 'flex' : 'none';
+  });
+
+  document.getElementById('btn-pick-video').addEventListener('click', ()=>{
+    if(sourceFrames.length && !confirm('這會取代目前的動畫內容，確定要繼續嗎？')) return;
+    videoFileInput.click();
+  });
+  videoFileInput.addEventListener('change', e=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    pendingVideoFile = file;
+    const url = URL.createObjectURL(file);
+    videoPreviewEl.src = url;
+    videoPreviewEl.onloadedmetadata = ()=>{
+      videoStartInput.value = '00:00';
+      videoEndInput.value = formatTimeStr(videoPreviewEl.duration);
+      videoPreviewArea.style.display = 'flex';
+      videoStatus.textContent = '影片已載入。播放預覽並設定起點／終點後，按「開始轉換為動畫格」。';
+    };
+  });
+
+  document.getElementById('btn-set-start').addEventListener('click', ()=>{
+    videoStartInput.value = formatTimeStr(videoPreviewEl.currentTime);
+  });
+  document.getElementById('btn-set-end').addEventListener('click', ()=>{
+    videoEndInput.value = formatTimeStr(videoPreviewEl.currentTime);
+  });
+
+  function seekVideo(video, t){
+    return new Promise(resolve=>{
+      function onSeeked(){ video.removeEventListener('seeked', onSeeked); resolve(); }
+      video.addEventListener('seeked', onSeeked);
+      video.currentTime = t;
+    });
+  }
+
+  document.getElementById('btn-convert-video').addEventListener('click', ()=>{
+    if(!pendingVideoFile){ alert('請先選擇影片檔案。'); return; }
+    convertVideoToFrames(pendingVideoFile);
+  });
+
+  async function convertVideoToFrames(file){
+    const video = videoPreviewEl;
+    videoStatus.textContent = '轉換中...';
+    videoProgress.style.display = 'block'; videoProgress.value = 0;
+    video.pause();
+    video.controls = false;
+    try{
+      const fps = Math.max(1, Math.min(30, +document.getElementById('video-fps').value || 10));
+      const dur = video.duration || 0;
+      let start = Math.max(0, Math.min(parseTimeStr(videoStartInput.value), dur));
+      let end = parseTimeStr(videoEndInput.value);
+      if(!end) end = dur;
+      end = Math.max(start + 0.05, Math.min(end, dur));
+      const rangeDur = end - start;
+      if(!rangeDur){ videoStatus.textContent = '時間範圍無效，請確認起點／終點設定。'; videoProgress.style.display = 'none'; video.controls = true; return; }
+      const maxW = resolveVideoWidth(video.videoWidth);
+      const scale = Math.min(1, maxW / video.videoWidth);
+      const w = Math.max(1, Math.round(video.videoWidth * scale));
+      const h = Math.max(1, Math.round(video.videoHeight * scale));
+      const frameDelay = 1000 / fps;
+      let frameCountTarget = Math.max(1, Math.floor(rangeDur * fps));
+      let capped = false;
+      if(frameCountTarget > 300){ frameCountTarget = 300; capped = true; }
+      const frames = [];
+      for(let i=0;i<frameCountTarget;i++){
+        const t = Math.min(end - 0.001, start + i / fps);
+        await seekVideo(video, t);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+        frames.push({canvas, delay: frameDelay});
+        videoProgress.value = (i+1) / frameCountTarget;
+        if(i % 5 === 0) await new Promise(r=> setTimeout(r, 0));
+      }
+      videoProgress.style.display = 'none';
+      video.controls = true;
+      sourceFrames = frames; srcW = w; srcH = h; previewIndex = 0;
+      infoEl.textContent = file.name + '（影片轉換）';
+      dimsLabel.textContent = srcW + ' × ' + srcH + ' px';
+      formatBadge.textContent = '影片轉換';
+      frameCountBadge.textContent = sourceFrames.length + ' 格';
+      emptyEl.style.display = 'none';
+      previewCanvas.style.display = 'block';
+      previewCanvas.width = srcW; previewCanvas.height = srcH;
+      buildFrameStrip();
+      startPreviewLoop();
+      videoStatus.textContent = capped
+        ? '為避免瀏覽器過載，已將擷取張數上限限制為 300 格。'
+        : `已轉換 ${sourceFrames.length} 格，可繼續使用其他工具編輯。`;
+    }catch(err){
+      console.error(err);
+      videoStatus.textContent = '轉換失敗：' + (err && err.message ? err.message : '未知錯誤');
+      videoProgress.style.display = 'none';
+      video.controls = true;
+    }
+  }
+
+  function deleteFrame(i){
+    if(sourceFrames.length <= 1){ alert('至少要保留一格畫面。'); return; }
+    sourceFrames.splice(i, 1);
+    if(previewIndex >= sourceFrames.length) previewIndex = sourceFrames.length - 1;
+    refreshAfterFrameEdit();
+  }
+  function duplicateFrame(i){
+    const src = sourceFrames[i];
+    sourceFrames.splice(i+1, 0, {canvas: cloneCanvas(src.canvas), delay: src.delay});
+    previewIndex = i+1;
+    refreshAfterFrameEdit();
+  }
+  function refreshAfterFrameEdit(){
+    frameCountBadge.textContent = sourceFrames.length + ' 格';
+    buildFrameStrip();
+    renderPreviewFrame();
+  }
+
+  function buildFrameStrip(){
+    frameStrip.innerHTML = '';
+    sourceFrames.forEach((f,i)=>{
+      const card = document.createElement('div');
+      card.className = 'frame-card' + (i===previewIndex ? ' active' : '');
+
+      const th = document.createElement('canvas');
+      th.width = 52; th.height = 52;
+      const thctx = th.getContext('2d');
+      const scale = Math.min(52/f.canvas.width, 52/f.canvas.height);
+      const dw = f.canvas.width*scale, dh = f.canvas.height*scale;
+      thctx.drawImage(f.canvas, (52-dw)/2, (52-dh)/2, dw, dh);
+      th.addEventListener('click', ()=>{ previewIndex = i; renderPreviewFrame(); markActiveCard(i); });
+      card.appendChild(th);
+
+      const delayInput = document.createElement('input');
+      delayInput.type = 'number'; delayInput.min = 20; delayInput.value = Math.round(f.delay); delayInput.title = '延遲(ms)';
+      delayInput.addEventListener('change', ()=>{ f.delay = Math.max(20, +delayInput.value || 100); });
+      card.appendChild(delayInput);
+
+      const actions = document.createElement('div');
+      actions.className = 'frame-actions';
+      const dupBtn = document.createElement('button'); dupBtn.textContent = '複製';
+      dupBtn.addEventListener('click', ev=>{ ev.stopPropagation(); duplicateFrame(i); });
+      const delBtn = document.createElement('button'); delBtn.textContent = '刪除'; delBtn.className = 'danger';
+      delBtn.addEventListener('click', ev=>{ ev.stopPropagation(); deleteFrame(i); });
+      actions.appendChild(dupBtn); actions.appendChild(delBtn);
+      card.appendChild(actions);
+
+      frameStrip.appendChild(card);
+    });
+  }
+  function markActiveCard(i){ Array.from(frameStrip.children).forEach((el,idx)=> el.classList.toggle('active', idx===i)); }
+
+  function currentAnimParams(){
+    return {
+      pct: +document.getElementById('anim-pct').value,
+      bright: +document.getElementById('anim-bright').value,
+      contrast: +document.getElementById('anim-contrast').value,
+      sat: +document.getElementById('anim-sat').value,
+      caption: {
+        text: document.getElementById('caption-text').value,
+        position: document.getElementById('caption-pos').value,
+        fontSize: +document.getElementById('caption-size').value,
+        color: document.getElementById('caption-color').value,
+        strokeColor: document.getElementById('caption-stroke').value
+      }
+    };
+  }
+
+  function processFrame(canvas, params){
+    let working = canvas;
+    if(params.pct !== 100){
+      const tw = Math.max(1, Math.round(working.width * params.pct/100));
+      const th = Math.max(1, Math.round(working.height * params.pct/100));
+      working = (params.pct < 100) ? highQualityResize(working, tw, th) : simpleResize(working, tw, th);
+    }
+    if(params.bright !== 100 || params.contrast !== 100 || params.sat !== 100){
+      const out = document.createElement('canvas');
+      out.width = working.width; out.height = working.height;
+      const octx = out.getContext('2d');
+      octx.filter = `brightness(${params.bright}%) contrast(${params.contrast}%) saturate(${params.sat}%)`;
+      octx.drawImage(working, 0, 0);
+      working = out;
+    }
+    if(params.caption.text){ working = drawCaption(working, params.caption); }
+    return working;
+  }
+
+  function renderPreviewFrame(){
+    if(sourceFrames.length === 0) return;
+    const params = currentAnimParams();
+    let base = sourceFrames[previewIndex].canvas;
+    if(pickedColorAnim){
+      base = chromaKey(base, pickedColorAnim, +document.getElementById('tol-anim').value, +document.getElementById('feather-anim').value, document.getElementById('spill-anim').checked);
+    }
+    const processed = processFrame(base, params);
+    previewCanvas.width = processed.width; previewCanvas.height = processed.height;
+    pctx.clearRect(0,0,processed.width,processed.height);
+    pctx.drawImage(processed, 0, 0);
+    markActiveCard(previewIndex);
+  }
+
+  function startPreviewLoop(){
+    if(previewTimer) clearInterval(previewTimer);
+    previewIndex = 0;
+    previewTimer = setInterval(()=>{
+      if(sourceFrames.length === 0) return;
+      renderPreviewFrame();
+      const skip = +document.getElementById('frame-skip').value;
+      let next = previewIndex + skip;
+      if(next >= sourceFrames.length) next = 0;
+      previewIndex = next;
+    }, 110);
+  }
+  ['anim-pct','anim-bright','anim-contrast','anim-sat','caption-text','caption-pos','caption-size','caption-color','caption-stroke','speed','frame-skip','tol-anim','feather-anim']
+    .forEach(id=>{
+      document.getElementById(id).addEventListener('input', ()=>{
+        document.getElementById('val-anim-pct').textContent = document.getElementById('anim-pct').value+'%';
+        document.getElementById('val-anim-bright').textContent = document.getElementById('anim-bright').value+'%';
+        document.getElementById('val-anim-contrast').textContent = document.getElementById('anim-contrast').value+'%';
+        document.getElementById('val-anim-sat').textContent = document.getElementById('anim-sat').value+'%';
+        document.getElementById('val-speed').textContent = document.getElementById('speed').value+'%';
+        document.getElementById('val-tol-anim').textContent = document.getElementById('tol-anim').value;
+        document.getElementById('val-feather-anim').textContent = document.getElementById('feather-anim').value;
+      });
+    });
+
+  let pickedColorAnim = null;
+  let eyedropActiveAnim = false;
+  let animRemovePassCount = 0;
+  let animRemoveHistory = [];
+  const passCountHintAnim = document.getElementById('pass-count-hint-anim');
+
+  document.getElementById('btn-eyedrop-anim').addEventListener('click', ()=>{ eyedropActiveAnim = true; previewCanvas.classList.add('eyedrop-cursor'); });
+  document.getElementById('btn-clear-pick-anim').addEventListener('click', ()=>{
+    pickedColorAnim = null;
+    document.getElementById('picked-swatch-anim').style.display = 'none';
+    renderPreviewFrame();
+  });
+  previewCanvas.addEventListener('click', function(e){
+    if(!eyedropActiveAnim) return;
+    const rect = previewCanvas.getBoundingClientRect();
+    const scaleX = previewCanvas.width / rect.width, scaleY = previewCanvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX), y = Math.floor((e.clientY - rect.top) * scaleY);
+    const px = pctx.getImageData(x, y, 1, 1).data;
+    pickedColorAnim = [px[0], px[1], px[2]];
+    document.getElementById('picked-swatch-anim').style.display = 'inline-flex';
+    document.getElementById('picked-dot-anim').style.background = `rgb(${pickedColorAnim.join(',')})`;
+    document.getElementById('picked-text-anim').textContent = `RGB(${pickedColorAnim.join(', ')})`;
+    eyedropActiveAnim = false;
+    previewCanvas.classList.remove('eyedrop-cursor');
+    renderPreviewFrame();
+  });
+
+  document.getElementById('btn-apply-remove-anim').addEventListener('click', ()=>{
+    if(sourceFrames.length === 0){ alert('請先載入或建立動畫。'); return; }
+    if(!pickedColorAnim){ alert('請先用滴管在畫面上點選要去除的顏色。'); return; }
+    const tol = +document.getElementById('tol-anim').value;
+    const feather = +document.getElementById('feather-anim').value;
+    const spill = document.getElementById('spill-anim').checked;
+    animRemoveHistory.push(sourceFrames.map(f=> ({canvas: cloneCanvas(f.canvas), delay: f.delay})));
+    if(animRemoveHistory.length > 10) animRemoveHistory.shift();
+    sourceFrames = sourceFrames.map(f=> ({canvas: chromaKey(f.canvas, pickedColorAnim, tol, feather, spill), delay: f.delay}));
+    animRemovePassCount++;
+    passCountHintAnim.textContent = `已套用 ${animRemovePassCount} 次去背（全部畫格），可繼續調整參數再套用，或重新選色做下一輪。`;
+    buildFrameStrip();
+    renderPreviewFrame();
+  });
+  document.getElementById('btn-undo-remove-anim').addEventListener('click', ()=>{
+    if(animRemoveHistory.length === 0) return;
+    sourceFrames = animRemoveHistory.pop();
+    if(animRemovePassCount > 0) animRemovePassCount--;
+    passCountHintAnim.textContent = animRemovePassCount > 0
+      ? `已套用 ${animRemovePassCount} 次去背（全部畫格），可繼續調整參數再套用，或重新選色做下一輪。`
+      : '尚未套用任何去背。';
+    buildFrameStrip();
+    renderPreviewFrame();
+  });
+
+  const outputFormat = document.getElementById('output-format');
+  const gifQualityField = document.getElementById('gif-quality-field');
+  const gifQuality = document.getElementById('gif-quality');
+  const valGifQ = document.getElementById('val-gif-q');
+  gifQuality.addEventListener('input', ()=> valGifQ.textContent = gifQuality.value);
+  outputFormat.addEventListener('change', ()=>{ gifQualityField.style.display = outputFormat.value === 'gif' ? 'flex' : 'none'; });
+
+  async function deliverBlob(blob, filename, downloadArea){
+    const autoDownload = document.getElementById('auto-download-anim').checked;
+    if(autoDownload){
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      const sizeLine = document.createElement('span');
+      sizeLine.className = 'hint mono';
+      sizeLine.textContent = `已自動下載 ${filename}（${formatBytes(blob.size)}）`;
+      downloadArea.appendChild(sizeLine);
+      return;
+    }
+    if(window.showSaveFilePicker){
+      try{
+        const handle = await window.showSaveFilePicker({ suggestedName: filename });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        const sizeLine = document.createElement('span');
+        sizeLine.className = 'hint mono';
+        sizeLine.textContent = `已儲存 ${filename}（${formatBytes(blob.size)}）`;
+        downloadArea.appendChild(sizeLine);
+      }catch(err){
+        if(err && err.name === 'AbortError') return;
+        console.error(err);
+        alert('儲存失敗：' + (err && err.message ? err.message : '未知錯誤'));
+      }
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.className = 'btn primary';
+    a.style.display = 'inline-block'; a.style.textDecoration = 'none'; a.style.textAlign = 'center';
+    a.href = url; a.download = filename; a.textContent = '⬇ 下載 ' + filename;
+    const sizeLine = document.createElement('span');
+    sizeLine.className = 'hint mono';
+    sizeLine.textContent = '此瀏覽器不支援選擇下載位置，請點擊下載：' + formatBytes(blob.size);
+    downloadArea.appendChild(a);
+    downloadArea.appendChild(sizeLine);
+  }
+
+  document.getElementById('btn-render-anim').addEventListener('click', async ()=>{
+    if(sourceFrames.length === 0){ alert('請先載入或建立動畫。'); return; }
+    const params = currentAnimParams();
+    const skip = +document.getElementById('frame-skip').value;
+    const speed = (+document.getElementById('speed').value) / 100;
+    const framesToUse = sourceFrames.filter((f,i)=> i % skip === 0);
+
+    const progress = document.getElementById('anim-progress');
+    const downloadArea = document.getElementById('anim-download-area');
+    progress.style.display = 'block'; progress.value = 0; downloadArea.innerHTML = '';
+
+    const processed = [];
+    for(let i=0;i<framesToUse.length;i++){
+      const canvas = processFrame(framesToUse[i].canvas, params);
+      const delay = Math.max(20, Math.round(framesToUse[i].delay / speed));
+      processed.push({canvas, delay});
+      progress.value = ((i+1)/framesToUse.length) * 0.5;
+      if(i % 5 === 0) await new Promise(r=> setTimeout(r, 0));
+    }
+
+    try{
+      let blob, filename;
+      if(outputFormat.value === 'gif'){
+        let transparentKey = null;
+        if(processed.some(p=> frameHasTransparency(p.canvas))){
+          transparentKey = GifCodec.pickTransparentKey(processed);
+        }
+        blob = await GifCodec.encode(processed, +gifQuality.value, p=>{ progress.value = 0.5 + p*0.5; }, transparentKey);
+        filename = 'edited.gif';
+      } else {
+        if(typeof CompressionStream === 'undefined'){ alert('這個瀏覽器不支援 APNG 輸出所需的壓縮串流 API。'); progress.style.display = 'none'; return; }
+        blob = await ApngCodec.encode(processed, p=>{ progress.value = 0.5 + p*0.5; });
+        filename = 'edited.png';
+      }
+      progress.style.display = 'none';
+      await deliverBlob(blob, filename, downloadArea);
+    }catch(err){
+      console.error(err);
+      progress.style.display = 'none';
+      alert('輸出失敗：' + (err && err.message ? err.message : '未知錯誤'));
+    }
+  });
+
+  document.getElementById('btn-estimate-anim').addEventListener('click', async ()=>{
+    if(sourceFrames.length === 0){ alert('請先載入或建立動畫。'); return; }
+    const resultEl = document.getElementById('estimate-result');
+    resultEl.textContent = '估算中...';
+    const params = currentAnimParams();
+    const skip = +document.getElementById('frame-skip').value;
+    const speed = (+document.getElementById('speed').value) / 100;
+    const framesToUse = sourceFrames.filter((f,i)=> i % skip === 0);
+    if(framesToUse.length === 0){ resultEl.textContent = '沒有可用的畫格。'; return; }
+    const sampleCount = Math.min(6, framesToUse.length);
+    const idxSet = new Set();
+    for(let i=0;i<sampleCount;i++){ idxSet.add(Math.floor(i*(framesToUse.length-1)/Math.max(1,sampleCount-1))); }
+    const sampleIdx = Array.from(idxSet);
+    const sampleFrames = sampleIdx.map(i=>{
+      const canvas = processFrame(framesToUse[i].canvas, params);
+      const delay = Math.max(20, Math.round(framesToUse[i].delay / speed));
+      return {canvas, delay};
+    });
+    try{
+      let blob;
+      if(outputFormat.value === 'gif'){
+        let transparentKey = null;
+        if(sampleFrames.some(f=> frameHasTransparency(f.canvas))) transparentKey = GifCodec.pickTransparentKey(sampleFrames);
+        blob = await GifCodec.encode(sampleFrames, +gifQuality.value, null, transparentKey);
+      } else {
+        if(typeof CompressionStream === 'undefined'){ resultEl.textContent = '此瀏覽器不支援 APNG 估算所需的壓縮串流 API。'; return; }
+        blob = await ApngCodec.encode(sampleFrames, null);
+      }
+      const perFrame = blob.size / sampleFrames.length;
+      const estimateTotal = perFrame * framesToUse.length;
+      resultEl.textContent = `預估檔案大小：約 ${formatBytes(estimateTotal)}（依 ${sampleFrames.length} 個樣本畫格推算，實際輸出可能略有差異）`;
+    }catch(err){
+      console.error(err);
+      resultEl.textContent = '估算失敗：' + (err && err.message ? err.message : '未知錯誤');
+    }
+  });
+})();
+
+})();
+</script>
+</body>
+</html>

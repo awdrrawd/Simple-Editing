@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Cooldown · 冷卻時間記事器</title>
+<script src="../../assets/shared.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    color-scheme: light dark;
+    --bg-page: #f3f4f7;
+    --bg-card: #ffffff;
+    --bg-form: #fafbfc;
+    --bg-hover: #eef0f4;
+    --border: #e2e5eb;
+    --border-strong: #cfd4dd;
+    --text-primary: #14171c;
+    --text-secondary: #4c5563;
+    --text-muted: #8890a0;
+    --accent: #3d4fd6;
+    --accent-hover: #2f3fb8;
+    --accent-soft: #ecedfb;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 10px 28px rgba(15,23,42,.07);
+    --badge-ready-bg: #e1f5ea;
+    --badge-ready-text: #0f7a44;
+    --badge-cooling-bg: #fdecd6;
+    --badge-cooling-text: #ac5a0c;
+    --badge-expired-bg: #fbe1e2;
+    --badge-expired-text: #ba2733;
+    --danger: #d5424e;
+    --danger-hover: #b6303c;
+    --star: #dd9a11;
+    --input-bg: #ffffff;
+    --table-header: #f6f7f9;
+    --table-border: #e9ebef;
+    --focus-ring: rgba(61, 79, 214, .18);
+  }
+
+  [data-theme="dark"],
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg-page: #0b0d10;
+      --bg-card: #15181d;
+      --bg-form: #1a1e24;
+      --bg-hover: #20242b;
+      --border: #262b33;
+      --border-strong: #363c47;
+      --text-primary: #eef0f3;
+      --text-secondary: #a7afbc;
+      --text-muted: #6c7482;
+      --accent: #7688ff;
+      --accent-hover: #97a4ff;
+      --accent-soft: #1c2140;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.45);
+      --badge-ready-bg: #10301f;
+      --badge-ready-text: #4fdc8c;
+      --badge-cooling-bg: #3a2410;
+      --badge-cooling-text: #f5b148;
+      --badge-expired-bg: #3a1519;
+      --badge-expired-text: #f57882;
+      --danger: #e8626c;
+      --danger-hover: #f2868e;
+      --star: #f2bb3d;
+      --input-bg: #1b1f26;
+      --table-header: #191d23;
+      --table-border: #262b33;
+      --focus-ring: rgba(118, 136, 255, .22);
+    }
+  }
+  [data-theme="dark"] {
+    --bg-page: #0b0d10;
+    --bg-card: #15181d;
+    --bg-form: #1a1e24;
+    --bg-hover: #20242b;
+    --border: #262b33;
+    --border-strong: #363c47;
+    --text-primary: #eef0f3;
+    --text-secondary: #a7afbc;
+    --text-muted: #6c7482;
+    --accent: #7688ff;
+    --accent-hover: #97a4ff;
+    --accent-soft: #1c2140;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.45);
+    --badge-ready-bg: #10301f;
+    --badge-ready-text: #4fdc8c;
+    --badge-cooling-bg: #3a2410;
+    --badge-cooling-text: #f5b148;
+    --badge-expired-bg: #3a1519;
+    --badge-expired-text: #f57882;
+    --danger: #e8626c;
+    --danger-hover: #f2868e;
+    --star: #f2bb3d;
+    --input-bg: #1b1f26;
+    --table-header: #191d23;
+    --table-border: #262b33;
+    --focus-ring: rgba(118, 136, 255, .22);
+  }
+
+  /* 主題切換時，讓所有會變色的元素一起做柔和的顏色過渡，避免切換時的生硬跳動 */
+  body, .container, .brand-mark, .chip-btn, .stat-card, .form-grid,
+  .form-group input, .form-group select, .quick-sites button,
+  .btn, .btn-outline, .btn-danger, .btn-star, .sort-group button,
+  #filterInput, .meta-info, .table-wrap, table, th, td,
+  .status-badge, .note-cell, .footer, .toggle-switch, .toggle-track, .toggle-thumb {
+    transition: background-color .25s ease, border-color .25s ease,
+                color .25s ease, box-shadow .25s ease;
+  }
+
+  body {
+    background: var(--bg-page);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 16px;
+    color: var(--text-primary);
+  }
+
+  .container {
+    max-width: 1080px;
+    width: 100%;
+  }
+
+  /* ---------- Header ---------- */
+  .head-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-mark {
+    width: 34px; height: 34px;
+    border-radius: 9px;
+    background: linear-gradient(155deg, var(--accent), var(--accent-hover));
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: .95rem;
+    flex-shrink: 0;
+  }
+  h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  h1 small {
+    display: block;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-top: 1px;
+    letter-spacing: 0;
+  }
+  .theme-lang { display: flex; gap: 8px; align-items: center; }
+  .chip-btn {
+    display: inline-block;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: .12s ease;
+    font-family: inherit;
+    text-decoration: none;
+  }
+  .chip-btn:hover { border-color: var(--border-strong); background: var(--bg-hover); color: var(--text-primary); }
+  .chip-btn:active { transform: translateY(1px); }
+
+  /* ---------- Stats ---------- */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .stat-value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: .72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  .stat-card.ready .stat-value { color: var(--badge-ready-text); }
+  .stat-card.cooling .stat-value { color: var(--badge-cooling-text); }
+
+  /* ---------- Form ---------- */
+  .form-grid {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px 10px;
+  }
+  .form-group { flex: 1 0 130px; min-width: 110px; }
+  .form-group label {
+    display: block;
+    font-size: .68rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: .9rem;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    outline: none;
+    font-family: inherit;
+    transition: border-color .12s, box-shadow .12s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+  }
+  .quick-sites {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    align-items: center;
+  }
+  .quick-sites .label-text {
+    font-size: .72rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .quick-sites button {
+    background: var(--bg-form);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 4px 11px;
+    font-size: .76rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: .1s;
+    font-family: inherit;
+  }
+  .quick-sites button:hover { border-color: var(--accent); color: var(--accent); }
+
+  .time-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .time-group input {
+    width: 56px;
+    padding: 9px 4px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .time-group span { font-size: .78rem; color: var(--text-muted); font-weight: 500; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    background: var(--accent);
+    border: 1px solid transparent;
+    color: #fff;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: .85rem;
+    cursor: pointer;
+    transition: .12s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    font-family: inherit;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:active { transform: translateY(1px); }
+  .btn-outline {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .btn-outline:hover { border-color: var(--border-strong); background: var(--bg-hover); color: var(--text-primary); }
+  .btn-danger { background: transparent; border: 1px solid var(--border); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .btn-star {
+    background: transparent;
+    border: none;
+    font-size: 1.05rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    color: var(--border-strong);
+    line-height: 1;
+    transition: .1s;
+  }
+  .btn-star:hover { color: var(--star); }
+  .btn-star.active { color: var(--star); }
+  .btn-notify {
+    background: transparent;
+    border: none;
+    font-size: .95rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    color: var(--border-strong);
+    line-height: 1;
+    transition: .1s;
+    opacity: .55;
+  }
+  .btn-notify:hover { opacity: 1; }
+  .btn-notify.active { color: var(--accent); opacity: 1; }
+  .action-cell .confirm-cancel-btn, .action-cell .confirm-delete-btn { font-weight: 600; }
+
+  /* ---------- Action bar ---------- */
+  .action-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .filter-area { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  #filterInput {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: .84rem;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    min-width: 170px;
+    font-family: inherit;
+    outline: none;
+  }
+  #filterInput:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus-ring); }
+  .meta-info {
+    font-size: .74rem;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+  }
+  .sort-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sort-group button {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 5px 12px;
+    font-size: .76rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: .1s;
+    font-family: inherit;
+  }
+  .sort-group button.active {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .sort-group button:hover:not(.active) { border-color: var(--border-strong); }
+  .bar-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .toggle-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px 2px;
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .toggle-track {
+    width: 34px;
+    height: 19px;
+    border-radius: 999px;
+    background: var(--border-strong);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    box-shadow: 0 1px 2px rgba(0,0,0,.25);
+    transition: transform .18s ease;
+  }
+  .toggle-switch[aria-pressed="true"] .toggle-track { background: var(--accent); }
+  .toggle-switch[aria-pressed="true"] .toggle-thumb { transform: translateX(15px); }
+  .toggle-switch:hover .toggle-track { background: var(--border-strong); }
+  .toggle-switch[aria-pressed="true"]:hover .toggle-track { background: var(--accent-hover); }
+
+  /* ---------- Table ---------- */
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    box-shadow: var(--shadow);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .87rem; min-width: 640px; }
+  th {
+    background: var(--table-header);
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    padding: 11px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--table-border);
+  }
+  th.icon-col {
+    text-align: center;
+    font-size: 1rem;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--table-border);
+    vertical-align: middle;
+    background: var(--bg-card);
+    color: var(--text-primary);
+  }
+  tbody tr:hover td { background: var(--bg-hover); }
+  tr:last-child td { border-bottom: none; }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 8px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 600;
+  }
+  .status-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+  }
+  .status-ready { background: var(--badge-ready-bg); color: var(--badge-ready-text); }
+  .status-cooling { background: var(--badge-cooling-bg); color: var(--badge-cooling-text); }
+  .status-expired { background: var(--badge-expired-bg); color: var(--badge-expired-text); }
+
+  .time-display { font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .note-cell { max-width: 160px; word-break: break-word; color: var(--text-secondary); }
+  .action-cell { display: flex; flex-wrap: wrap; gap: 4px; }
+  .action-cell .btn, .action-cell .btn-outline, .action-cell .btn-danger { padding: 4px 9px; font-size: .72rem; border-radius: 6px; }
+  .empty-message { text-align: center; padding: 40px 10px; color: var(--text-muted); font-size: .88rem; }
+  .star-col { width: 36px; text-align: center; }
+
+  .footer {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+    color: var(--text-muted);
+    font-size: .74rem;
+  }
+
+  @media (max-width: 640px) {
+    body { padding: 16px 10px; }
+    .form-row { flex-direction: column; align-items: stretch; }
+    .form-group { flex: 1 1 auto; }
+    .time-group input { width: 52px; }
+    .action-bar { flex-direction: column; align-items: stretch; }
+    .bar-actions { justify-content: flex-end; }
+  }
+</style>
+</head>
+<body>
+<div class="container" id="appContainer">
+
+  <div class="head-row">
+    <div class="brand">
+      <div class="brand-mark">AI</div>
+      <h1>AI Cooldown <small id="langSub">冷卻追蹤 · 多帳號</small></h1>
+    </div>
+    <div class="theme-lang">
+      <button class="chip-btn" id="themeToggle">暗色</button>
+      <button class="chip-btn" id="langToggle">EN</button>
+      <a class="chip-btn" id="homeBtn" href="../../index.html" data-se-home>🏠 回首頁</a>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">0</div>
+      <div class="stat-label" id="statTotalLabel">總紀錄</div>
+    </div>
+    <div class="stat-card ready">
+      <div class="stat-value" id="statReady">0</div>
+      <div class="stat-label" id="statReadyLabel">已就緒</div>
+    </div>
+    <div class="stat-card cooling">
+      <div class="stat-value" id="statCooling">0</div>
+      <div class="stat-label" id="statCoolingLabel">冷卻中</div>
+    </div>
+  </div>
+
+  <!-- 表單 -->
+  <div class="form-grid" id="formPanel">
+    <div class="form-row">
+      <div class="form-group">
+        <label id="lblSite">AI 網站</label>
+        <input type="text" id="siteName" placeholder="ChatGPT" value="">
+      </div>
+      <div class="form-group">
+        <label id="lblAccount">帳號</label>
+        <input type="text" id="accountName" placeholder="工作用" value="">
+      </div>
+      <div class="form-group" style="flex: 1 0 190px;">
+        <label id="lblCooldown">冷卻時間</label>
+        <div class="time-group">
+          <input type="number" id="cdDays" min="0" value="0" placeholder="天"> <span id="unitDay">天</span>
+          <input type="number" id="cdHours" min="0" max="23" value="0" placeholder="時"> <span id="unitHour">時</span>
+          <input type="number" id="cdMinutes" min="0" max="59" value="30" placeholder="分"> <span id="unitMinute">分</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label id="lblNote">註解</label>
+        <input type="text" id="noteInput" placeholder="進度/備忘" value="">
+      </div>
+      <div class="form-group" style="flex: 0 0 auto; display:flex; gap:8px;">
+        <button class="btn" id="addBtn"><span id="addBtnText">新增</span></button>
+        <button class="btn-outline" id="cancelEditBtn" style="display:none;">取消</button>
+      </div>
+    </div>
+    <!-- 快速網站 -->
+    <div class="quick-sites">
+      <span class="label-text" id="quickLabel">快速填入</span>
+      <button data-site="ChatGPT">ChatGPT</button>
+      <button data-site="Claude">Claude</button>
+      <button data-site="Perplexity">Perplexity</button>
+      <button data-site="Midjourney">Midjourney</button>
+      <button data-site="Gemini">Gemini</button>
+      <button data-site="Copilot">Copilot</button>
+    </div>
+  </div>
+
+  <!-- 操作列 -->
+  <div class="action-bar">
+    <div class="filter-area">
+      <input type="text" id="filterInput" placeholder="過濾..." value="">
+      <span class="meta-info" id="entryCount">0 筆</span>
+    </div>
+    <div class="sort-group">
+      <button data-sort="name" class="active" id="sortName">名稱</button>
+      <button data-sort="time" id="sortTime">時間</button>
+      <button data-sort="star" id="sortStar">星號</button>
+    </div>
+    <div class="bar-actions">
+      <button class="btn-outline chip-btn" id="resetAllBtn">重置全部</button>
+      <button class="btn-outline chip-btn" id="clearAllBtn" style="color:var(--danger);">清空</button>
+      <button class="toggle-switch" id="notifyToggle" type="button" aria-pressed="false">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+        <span id="notifyToggleLabel">就緒時通知</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 表格 -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="icon-col" style="width:36px; font-size:1.05rem;">★</th>
+          <th class="icon-col" style="width:36px; font-size:.95rem;">🔔</th>
+          <th id="thSite">AI 網站</th>
+          <th id="thAccount">帳號</th>
+          <th id="thStatus">狀態</th>
+          <th id="thRemain">剩餘時間</th>
+          <th id="thNote">註解</th>
+          <th id="thAction">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="8" class="empty-message" id="emptyMsg">尚未新增任何 AI 冷卻紀錄</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="footer">
+    <span id="footerTip">點擊星號可標記重要，排序優先</span>
+  </div>
+</div>
+<script>
+  (function() {
+    // ----- 多語言詞典 -----
+    const LANG = {
+      zh: {
+        title: 'AI Cooldown',
+        sub: '冷卻追蹤 · 多帳號',
+        site: 'AI 網站',
+        account: '帳號',
+        cooldown: '冷卻時間',
+        note: '註解',
+        add: '新增',
+        update: '更新',
+        quick: '快速填入',
+        filter: '過濾...',
+        sortName: '名稱',
+        sortTime: '時間',
+        sortStar: '星號',
+        resetAll: '重置全部',
+        clearAll: '清空',
+        empty: '尚未新增任何 AI 冷卻紀錄',
+        statusReady: '已就緒',
+        statusCooling: '冷卻中',
+        statusExpired: '過期',
+        remainReady: '已就緒',
+        day: '天',
+        hour: '時',
+        minute: '分',
+        footer: '點擊星號可標記重要，排序優先',
+        themeDark: '暗色',
+        themeLight: '亮色',
+        langToggle: 'EN',
+        statTotal: '總紀錄',
+        statReady: '已就緒',
+        statCooling: '冷卻中',
+        thStatus: '狀態',
+        thRemain: '剩餘時間',
+        thAction: '操作',
+        recs: '筆',
+        confirmDelete: '確定刪除？',
+        confirmBtn: '確定',
+        confirmResetAll: '重置所有冷卻？',
+        confirmClearAll: '清空所有紀錄？',
+        alertFill: '請填寫網站與帳號',
+        alertMinTime: '冷卻時間至少1分鐘',
+        cancel: '取消',
+        notifyLabel: '通知總開關',
+        notifyUnsupported: '此瀏覽器不支援通知功能',
+        notifyDenied: '通知權限已被封鎖，請至瀏覽器設定中開啟後再試一次',
+        notifyTitle: '已就緒',
+        starTitle: '標記為星號優先',
+        notifyRowTitle: '此任務就緒時通知我（需先開啟上方通知總開關）',
+      },
+      en: {
+        title: 'AI Cooldown',
+        sub: 'Cooldown · Multi-account',
+        site: 'AI Site',
+        account: 'Account',
+        cooldown: 'Cooldown',
+        note: 'Note',
+        add: 'Add',
+        update: 'Update',
+        quick: 'Quick add',
+        filter: 'Filter...',
+        sortName: 'Name',
+        sortTime: 'Time',
+        sortStar: 'Star',
+        resetAll: 'Reset all',
+        clearAll: 'Clear all',
+        empty: 'No AI cooldown records yet',
+        statusReady: 'Ready',
+        statusCooling: 'Cooling',
+        statusExpired: 'Expired',
+        remainReady: 'Ready',
+        day: 'd',
+        hour: 'h',
+        minute: 'm',
+        footer: 'Click the star to mark important, sort by priority',
+        themeDark: 'Dark',
+        themeLight: 'Light',
+        langToggle: '中文',
+        statTotal: 'Total',
+        statReady: 'Ready',
+        statCooling: 'Cooling',
+        thStatus: 'Status',
+        thRemain: 'Remaining',
+        thAction: 'Actions',
+        recs: 'recs',
+        confirmDelete: 'Delete this record?',
+        confirmBtn: 'Confirm',
+        confirmResetAll: 'Reset all cooldowns?',
+        confirmClearAll: 'Clear all records?',
+        alertFill: 'Please fill in site and account',
+        alertMinTime: 'Cooldown must be at least 1 minute',
+        cancel: 'Cancel',
+        notifyLabel: 'Notifications (master switch)',
+        notifyUnsupported: 'This browser does not support notifications',
+        notifyDenied: 'Notifications are blocked. Please enable them in your browser settings and try again.',
+        notifyTitle: 'Ready',
+        starTitle: 'Mark as priority',
+        notifyRowTitle: 'Notify me when this task is ready (master switch above must also be on)',
+      }
+    };
+
+    // language + theme are owned by the shared controller (assets/shared.js)
+    // so a choice made in any tool carries over to the others.
+    let currentLang = SharedSettings.getLang();
+    let currentTheme = SharedSettings.getTheme();
+
+    // DOM refs
+    const siteInput = document.getElementById('siteName');
+    const accountInput = document.getElementById('accountName');
+    const cdDays = document.getElementById('cdDays');
+    const cdHours = document.getElementById('cdHours');
+    const cdMinutes = document.getElementById('cdMinutes');
+    const noteInput = document.getElementById('noteInput');
+    const addBtn = document.getElementById('addBtn');
+    const addBtnText = document.getElementById('addBtnText');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const notifyToggle = document.getElementById('notifyToggle');
+    const notifyToggleLabel = document.getElementById('notifyToggleLabel');
+    const tableBody = document.getElementById('tableBody');
+    const filterInput = document.getElementById('filterInput');
+    const entryCount = document.getElementById('entryCount');
+    const resetAllBtn = document.getElementById('resetAllBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const themeToggle = document.getElementById('themeToggle');
+    const langToggle = document.getElementById('langToggle');
+
+    const sortNameBtn = document.getElementById('sortName');
+    const sortTimeBtn = document.getElementById('sortTime');
+    const sortStarBtn = document.getElementById('sortStar');
+
+    let entries = [];
+    let editingId = null;
+    let nextId = 1;
+    let currentSort = 'name';
+    let notifyEnabled = false;
+    let pendingDeleteId = null; // 目前正顯示「取消/確定」行內確認的列
+
+    // ----- 語言更新 -----
+    function updateLanguage() {
+      const t = LANG[currentLang];
+      document.querySelector('h1').innerHTML = `${t.title} <small id="langSub">${t.sub}</small>`;
+      document.getElementById('lblSite').textContent = t.site;
+      document.getElementById('lblAccount').textContent = t.account;
+      document.getElementById('lblCooldown').textContent = t.cooldown;
+      document.getElementById('lblNote').textContent = t.note;
+      document.getElementById('unitDay').textContent = t.day;
+      document.getElementById('unitHour').textContent = t.hour;
+      document.getElementById('unitMinute').textContent = t.minute;
+      addBtnText.textContent = editingId !== null ? t.update : t.add;
+      document.getElementById('quickLabel').textContent = t.quick;
+      filterInput.placeholder = t.filter;
+      sortNameBtn.textContent = t.sortName;
+      sortTimeBtn.textContent = t.sortTime;
+      sortStarBtn.textContent = t.sortStar;
+      resetAllBtn.textContent = t.resetAll;
+      clearAllBtn.textContent = t.clearAll;
+      // #emptyMsg only exists in the DOM while the table has zero rows —
+      // guard against it being missing so a language switch never throws.
+      const emptyMsgEl = document.getElementById('emptyMsg');
+      if (emptyMsgEl) emptyMsgEl.textContent = t.empty;
+      document.getElementById('thSite').textContent = t.site;
+      document.getElementById('thAccount').textContent = t.account;
+      document.getElementById('thStatus').textContent = t.thStatus;
+      document.getElementById('thRemain').textContent = t.thRemain;
+      document.getElementById('thNote').textContent = t.note;
+      document.getElementById('thAction').textContent = t.thAction;
+      document.getElementById('statTotalLabel').textContent = t.statTotal;
+      document.getElementById('statReadyLabel').textContent = t.statReady;
+      document.getElementById('statCoolingLabel').textContent = t.statCooling;
+      document.getElementById('footerTip').textContent = t.footer;
+      cancelEditBtn.textContent = t.cancel;
+      notifyToggleLabel.textContent = t.notifyLabel;
+      themeToggle.textContent = currentTheme === 'dark' ? t.themeLight : t.themeDark;
+      langToggle.textContent = t.langToggle;
+      SharedSettings.paintHomeLinks(currentLang);
+      renderTable();
+    }
+
+    // ----- 主題（預設跟隨瀏覽器設定，可手動覆寫並記住選擇） -----
+    function systemPrefersDark() {
+      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function updateThemeButtonLabel() {
+      const t = LANG[currentLang];
+      themeToggle.textContent = currentTheme === 'dark' ? t.themeLight : t.themeDark;
+    }
+
+    function applyTheme(theme, persist) {
+      currentTheme = theme;
+      if (persist) {
+        document.documentElement.setAttribute('data-theme', theme);
+        SharedSettings.setTheme(theme);
+      }
+      updateThemeButtonLabel();
+    }
+
+    function initTheme() {
+      if (SharedSettings.hasExplicitTheme()) {
+        applyTheme(SharedSettings.getTheme(), true);
+      } else {
+        // 沒有手動設定過，跟隨瀏覽器/系統的亮暗模式
+        document.documentElement.removeAttribute('data-theme');
+        currentTheme = systemPrefersDark() ? 'dark' : 'light';
+        updateThemeButtonLabel();
+      }
+      if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+          if (!SharedSettings.hasExplicitTheme()) {
+            currentTheme = e.matches ? 'dark' : 'light';
+            updateThemeButtonLabel();
+          }
+        });
+      }
+    }
+
+    // ----- 通知（可選，預設關閉，需使用者主動開啟並授權） -----
+    function updateNotifyToggleUI() {
+      notifyToggle.setAttribute('aria-pressed', notifyEnabled ? 'true' : 'false');
+    }
+
+    function setNotifyEnabled(val) {
+      notifyEnabled = val;
+      try { localStorage.setItem('aiCooldownNotify', val ? '1' : '0'); } catch(e) {}
+      updateNotifyToggleUI();
+    }
+
+    function initNotify() {
+      let saved = null;
+      try { saved = localStorage.getItem('aiCooldownNotify'); } catch(e) {}
+      // 只有在使用者先前開啟過、且瀏覽器仍保有授權時才自動恢復開啟狀態
+      if (saved === '1' && 'Notification' in window && Notification.permission === 'granted') {
+        notifyEnabled = true;
+      } else {
+        notifyEnabled = false;
+      }
+      updateNotifyToggleUI();
+    }
+
+    function toggleNotify() {
+      if (notifyEnabled) {
+        setNotifyEnabled(false);
+        return;
+      }
+      if (!('Notification' in window)) {
+        alert(LANG[currentLang].notifyUnsupported);
+        return;
+      }
+      if (Notification.permission === 'granted') {
+        setNotifyEnabled(true);
+      } else if (Notification.permission === 'denied') {
+        alert(LANG[currentLang].notifyDenied);
+      } else {
+        Notification.requestPermission().then(function(perm) {
+          setNotifyEnabled(perm === 'granted');
+        });
+      }
+    }
+
+    function checkNotifications() {
+      // 第一道守衛：全域開關關閉時，即使任務個別勾選了通知也一律不發送
+      if (!notifyEnabled || !('Notification' in window) || Notification.permission !== 'granted') return;
+      let changed = false;
+      for (const entry of entries) {
+        // 第二道守衛：通知現在是「單一任務」的設定，只有勾選了🔔的任務才會通知
+        if (!entry.notifyMe) continue;
+        if (getRemainingSeconds(entry) <= 0 && !entry.notified) {
+          entry.notified = true;
+          changed = true;
+          try {
+            const body = entry.note ? `${entry.account} · ${entry.note}` : entry.account;
+            new Notification(`${entry.site} ${LANG[currentLang].notifyTitle}`, { body, tag: 'ai-cooldown-' + entry.id });
+          } catch(e) {}
+        }
+      }
+      if (changed) saveToLocalStorage();
+    }
+
+    // ----- 資料操作 -----
+    function getTotalMinutes() {
+      const days = parseInt(cdDays.value) || 0;
+      const hours = parseInt(cdHours.value) || 0;
+      const mins = parseInt(cdMinutes.value) || 0;
+      return days * 1440 + hours * 60 + mins;
+    }
+
+    function formatTime(seconds) {
+      if (seconds < 0) seconds = 0;
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      const secs = Math.floor(seconds % 60);
+      const t = LANG[currentLang];
+      if (days === 0 && hours === 0 && mins === 0) return t.remainReady;
+      let parts = [];
+      if (days > 0) parts.push(`${days}${t.day}`);
+      if (hours > 0) parts.push(`${hours}${t.hour}`);
+      if (mins > 0) parts.push(`${mins}${t.minute}`);
+      if (secs > 0 && parts.length === 0) parts.push(`${secs}s`);
+      return parts.join(' ') || t.remainReady;
+    }
+
+    function getRemainingSeconds(entry) {
+      if (!entry.cooldownUntil) return 0;
+      const diff = (entry.cooldownUntil - Date.now()) / 1000;
+      return diff > 0 ? diff : 0;
+    }
+
+    function getStatusInfo(entry) {
+      const remain = getRemainingSeconds(entry);
+      if (remain <= 0) return { label: LANG[currentLang].statusReady, cls: 'status-ready' };
+      return { label: LANG[currentLang].statusCooling, cls: 'status-cooling' };
+    }
+
+    function getFilteredSorted() {
+      const filterText = filterInput.value.trim().toLowerCase();
+      let filtered = entries;
+      if (filterText !== '') {
+        filtered = entries.filter(e =>
+          e.site.toLowerCase().includes(filterText) ||
+          e.account.toLowerCase().includes(filterText) ||
+          (e.note || '').toLowerCase().includes(filterText)
+        );
+      }
+      filtered = filtered.slice();
+      if (currentSort === 'name') {
+        filtered.sort((a,b) => a.site.localeCompare(b.site) || a.account.localeCompare(b.account));
+      } else if (currentSort === 'time') {
+        filtered.sort((a,b) => {
+          const ra = getRemainingSeconds(a);
+          const rb = getRemainingSeconds(b);
+          if (ra > 0 && rb <= 0) return -1;
+          if (ra <= 0 && rb > 0) return 1;
+          return rb - ra;
+        });
+      } else if (currentSort === 'star') {
+        filtered.sort((a,b) => {
+          if (a.star && !b.star) return -1;
+          if (!a.star && b.star) return 1;
+          return 0;
+        });
+      }
+      return filtered;
+    }
+
+    function updateStats() {
+      const total = entries.length;
+      const ready = entries.filter(e => getRemainingSeconds(e) <= 0).length;
+      const cooling = total - ready;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statReady').textContent = ready;
+      document.getElementById('statCooling').textContent = cooling;
+    }
+
+    function renderTable() {
+      const t = LANG[currentLang];
+      const filtered = getFilteredSorted();
+      entryCount.textContent = `${filtered.length} ${t.recs}`;
+      updateStats();
+      checkNotifications();
+
+      if (filtered.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="8" class="empty-message" id="emptyMsg">${t.empty}</td></tr>`;
+        return;
+      }
+
+      let html = '';
+      for (const entry of filtered) {
+        const remain = getRemainingSeconds(entry);
+        const status = getStatusInfo(entry);
+        const timeDisplay = remain > 0 ? formatTime(remain) : t.remainReady;
+        const noteDisplay = entry.note || '—';
+        const starActive = entry.star ? 'active' : '';
+        const notifyActive = entry.notifyMe ? 'active' : '';
+        const actionsHtml = (entry.id === pendingDeleteId)
+          ? `<button class="btn-outline confirm-cancel-btn" data-id="${entry.id}">${t.cancel}</button>
+             <button class="btn-danger confirm-delete-btn" data-id="${entry.id}">${t.confirmBtn}</button>`
+          : `<button class="btn-outline reset-btn" data-id="${entry.id}">↻</button>
+             <button class="btn-outline edit-btn" data-id="${entry.id}">✎</button>
+             <button class="btn-danger delete-btn" data-id="${entry.id}">✕</button>`;
+        html += `<tr data-id="${entry.id}">
+          <td class="star-col"><button class="btn-star ${starActive}" data-id="${entry.id}" title="${t.starTitle}">★</button></td>
+          <td class="star-col"><button class="btn-notify ${notifyActive}" data-id="${entry.id}" title="${t.notifyRowTitle}">🔔</button></td>
+          <td><strong>${escapeHtml(entry.site)}</strong></td>
+          <td>${escapeHtml(entry.account)}</td>
+          <td><span class="status-badge ${status.cls}">${status.label}</span></td>
+          <td class="time-display">${timeDisplay}</td>
+          <td class="note-cell">${escapeHtml(noteDisplay)}</td>
+          <td class="action-cell">${actionsHtml}</td>
+        </tr>`;
+      }
+      tableBody.innerHTML = html;
+
+      // 事件綁定（每次重繪後重新綁定，確保每個按鈕都能作用）
+      tableBody.querySelectorAll('.btn-star').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleStar(Number(this.dataset.id));
+        });
+      });
+      tableBody.querySelectorAll('.btn-notify').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          toggleEntryNotify(Number(this.dataset.id));
+        });
+      });
+      tableBody.querySelectorAll('.reset-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          resetCooldown(Number(this.dataset.id));
+        });
+      });
+      tableBody.querySelectorAll('.edit-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          startEdit(Number(this.dataset.id));
+        });
+      });
+      tableBody.querySelectorAll('.confirm-cancel-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          pendingDeleteId = null;
+          renderTable();
+        });
+      });
+      tableBody.querySelectorAll('.confirm-delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          performDelete(Number(this.dataset.id));
+        });
+      });
+      tableBody.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          pendingDeleteId = Number(this.dataset.id);
+          renderTable();
+        });
+      });
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return String(text).replace(/[&<>"']/g, (m) => map[m] || m);
+    }
+
+    // ----- 操作函式 -----
+    function toggleStar(id) {
+      const entry = entries.find(e => e.id === id);
+      if (entry) { entry.star = !entry.star; renderTable(); saveToLocalStorage(); }
+    }
+
+    function toggleEntryNotify(id) {
+      const entry = entries.find(e => e.id === id);
+      if (entry) { entry.notifyMe = !entry.notifyMe; renderTable(); saveToLocalStorage(); }
+    }
+
+    function resetCooldown(id) {
+      const entry = entries.find(e => e.id === id);
+      if (!entry) return;
+      const ms = entry.cooldownMinutes * 60 * 1000;
+      entry.cooldownUntil = Date.now() + ms;
+      entry.notified = false;
+      renderTable(); saveToLocalStorage();
+    }
+
+    function startEdit(id) {
+      const entry = entries.find(e => e.id === id);
+      if (!entry) return;
+      editingId = id;
+      pendingDeleteId = null;
+      siteInput.value = entry.site;
+      accountInput.value = entry.account;
+      const totalMins = entry.cooldownMinutes || 0;
+      cdDays.value = Math.floor(totalMins / 1440);
+      cdHours.value = Math.floor((totalMins % 1440) / 60);
+      cdMinutes.value = totalMins % 60;
+      noteInput.value = entry.note || '';
+      addBtnText.textContent = LANG[currentLang].update;
+      toggleCancelButton(true);
+      document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function performDelete(id) {
+      entries = entries.filter(e => e.id !== id);
+      if (editingId === id) { cancelEdit(); }
+      if (pendingDeleteId === id) pendingDeleteId = null;
+      renderTable(); saveToLocalStorage();
+    }
+
+    function resetAllCooldowns() {
+      if (entries.length === 0) return;
+      if (!confirm(LANG[currentLang].confirmResetAll)) return;
+      const now = Date.now();
+      for (const e of entries) {
+        e.cooldownUntil = now + (e.cooldownMinutes * 60 * 1000);
+        e.notified = false;
+      }
+      renderTable(); saveToLocalStorage();
+    }
+
+    function clearAllEntries() {
+      if (entries.length === 0) return;
+      if (!confirm(LANG[currentLang].confirmClearAll)) return;
+      entries = [];
+      cancelEdit();
+      renderTable(); saveToLocalStorage();
+    }
+
+    // 新增/更新
+    function saveEntry() {
+      const site = siteInput.value.trim();
+      const account = accountInput.value.trim();
+      const note = noteInput.value.trim();
+      const totalMins = getTotalMinutes();
+      if (!site || !account) {
+        alert(LANG[currentLang].alertFill);
+        return;
+      }
+      if (totalMins < 1) {
+        alert(LANG[currentLang].alertMinTime);
+        return;
+      }
+      const now = Date.now();
+      const cooldownMs = totalMins * 60 * 1000;
+
+      if (editingId !== null) {
+        const idx = entries.findIndex(e => e.id === editingId);
+        if (idx === -1) return;
+        entries[idx] = { ...entries[idx], site, account, cooldownMinutes: totalMins, note, cooldownUntil: now + cooldownMs, notified: false };
+        editingId = null;
+        addBtnText.textContent = LANG[currentLang].add;
+        toggleCancelButton(false);
+      } else {
+        entries.push({
+          id: nextId++,
+          site, account, cooldownMinutes: totalMins, note,
+          cooldownUntil: now + cooldownMs,
+          star: false,
+          notified: false,
+          notifyMe: false,
+          createdAt: now,
+        });
+      }
+      siteInput.value = ''; accountInput.value = ''; noteInput.value = '';
+      cdDays.value = 0; cdHours.value = 0; cdMinutes.value = 30;
+      renderTable(); saveToLocalStorage();
+    }
+
+    function cancelEdit() {
+      editingId = null;
+      siteInput.value = ''; accountInput.value = ''; noteInput.value = '';
+      cdDays.value = 0; cdHours.value = 0; cdMinutes.value = 30;
+      addBtnText.textContent = LANG[currentLang].add;
+      toggleCancelButton(false);
+    }
+
+    function toggleCancelButton(show) {
+      cancelEditBtn.style.display = show ? 'inline-flex' : 'none';
+    }
+
+    // ----- 儲存 -----
+    function saveToLocalStorage() {
+      try {
+        localStorage.setItem('aiCooldownData_v2', JSON.stringify({ entries, nextId }));
+      } catch(e) {}
+    }
+
+    function loadFromLocalStorage() {
+      try {
+        const raw = localStorage.getItem('aiCooldownData_v2');
+        if (!raw) return false;
+        const data = JSON.parse(raw);
+        if (data.entries && Array.isArray(data.entries)) {
+          entries = data.entries;
+          entries.forEach(e => {
+            if (e.star === undefined) e.star = false;
+            // 舊資料若已經就緒，視為「已通知過」，避免一打開頁面就跳一堆通知
+            if (e.notified === undefined) e.notified = getRemainingSeconds(e) <= 0;
+            // 通知現在是「單一任務」設定，舊資料一律預設關閉，需逐一勾選才會通知
+            if (e.notifyMe === undefined) e.notifyMe = false;
+          });
+          if (data.nextId) nextId = data.nextId;
+          else { const max = entries.reduce((a,b) => Math.max(a, b.id||0), 0); nextId = max+1; }
+          return true;
+        }
+      } catch(e) {}
+      return false;
+    }
+
+    function initDefaultEntries() {
+      if (entries.length > 0) return;
+      const now = Date.now();
+      const add = (site, account, mins, note) => {
+        entries.push({
+          id: nextId++,
+          site, account, cooldownMinutes: mins, note: note || '',
+          cooldownUntil: now + mins*60*1000,
+          star: false,
+          notified: false,
+          notifyMe: false,
+          createdAt: now,
+        });
+      };
+      add('ChatGPT', '個人', 30, '今日剩餘 3 次');
+      add('Claude', '工作用', 45, '已用完，等冷卻');
+      add('Perplexity', '研究', 15, '快速查詢');
+      add('Midjourney', '創作者', 60, '生成進度80%');
+    }
+
+    // ----- 事件綁定 (全部集中) -----
+    function bindEvents() {
+      addBtn.addEventListener('click', saveEntry);
+      cancelEditBtn.addEventListener('click', cancelEdit);
+      notifyToggle.addEventListener('click', toggleNotify);
+
+      document.querySelectorAll('.quick-sites button').forEach(btn => {
+        btn.addEventListener('click', function() {
+          siteInput.value = this.dataset.site;
+          siteInput.focus();
+        });
+      });
+
+      sortNameBtn.addEventListener('click', function() {
+        currentSort = 'name';
+        document.querySelectorAll('.sort-group button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        renderTable();
+      });
+      sortTimeBtn.addEventListener('click', function() {
+        currentSort = 'time';
+        document.querySelectorAll('.sort-group button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        renderTable();
+      });
+      sortStarBtn.addEventListener('click', function() {
+        currentSort = 'star';
+        document.querySelectorAll('.sort-group button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        renderTable();
+      });
+
+      filterInput.addEventListener('input', renderTable);
+
+      resetAllBtn.addEventListener('click', resetAllCooldowns);
+      clearAllBtn.addEventListener('click', clearAllEntries);
+
+      themeToggle.addEventListener('click', function() {
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark', true);
+      });
+
+      langToggle.addEventListener('click', function() {
+        currentLang = currentLang === 'zh' ? 'en' : 'zh';
+        SharedSettings.setLang(currentLang);
+        updateLanguage();
+      });
+
+      document.querySelectorAll('#siteName, #accountName, #noteInput, #cdDays, #cdHours, #cdMinutes').forEach(input => {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); saveEntry(); }
+        });
+      });
+    }
+
+    // ----- 啟動 -----
+    initTheme();
+    initNotify();
+    const hasLoaded = loadFromLocalStorage();
+    if (!hasLoaded) initDefaultEntries();
+    updateLanguage();
+    bindEvents();
+    // 定時更新（每 5 秒重繪一次倒數，讓「就緒」通知更即時）
+    setInterval(renderTable, 5000);
+  })();
+</script>
+</body>
+</html>

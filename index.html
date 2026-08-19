@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simple Editing · 小工具箱</title>
+<script src="assets/shared.js"></script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .intro{ margin-bottom:32px; }
+  .intro h2{ font-size:1.6rem; margin:0 0 8px; }
+  .intro p{ color:var(--text-secondary); line-height:1.7; margin:0; max-width:60ch; }
+
+  .grid{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(260px,1fr));
+    gap:16px;
+  }
+  .card{
+    display:flex; flex-direction:column; gap:10px;
+    border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--bg-inset); padding:20px;
+    text-decoration:none; color:var(--text);
+    box-shadow:var(--shadow); transition:.15s ease;
+  }
+  .card:hover{ border-color:var(--accent); transform:translateY(-2px); }
+  .card .icon{ font-size:1.6rem; }
+  .card h3{ margin:0; font-size:1.05rem; }
+  .card p{ margin:0; color:var(--text-secondary); font-size:.88rem; line-height:1.6; flex:1; }
+  .card .go{
+    font-size:.82rem; font-weight:700; color:var(--accent);
+    display:flex; align-items:center; gap:4px;
+  }
+
+  footer{
+    max-width:960px; margin:0 auto; padding:0 24px 40px;
+    color:var(--text-secondary); font-size:.8rem;
+  }
+  footer a{ color:var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="brandTitle">Simple Editing · 小工具箱</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+  </div>
+</div>
+
+<main>
+  <div class="intro">
+    <h2 data-i18n="introTitle">純瀏覽器小工具，開了就能用</h2>
+    <p data-i18n="introDesc">這裡收集了幾個單頁完成、不需要安裝、不需要伺服器的小工具。全部都在你的瀏覽器裡本機運作，資料不會上傳到任何地方。點下面任一張卡片即可開始使用，工具內也都有「回首頁」的按鈕可以隨時回來。</p>
+  </div>
+
+  <div class="grid">
+    <a class="card" href="tools/markdown-editor/">
+      <div class="icon">📝</div>
+      <h3 data-i18n="mdTitle">格式小幫手</h3>
+      <p data-i18n="mdDesc">左邊寫 Markdown、右邊即時預覽，工具列一鍵套用標題、清單、表格、目錄等格式，可匯出 .md 或 PDF。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/ai-cooldown/">
+      <div class="icon">⏱️</div>
+      <h3 data-i18n="cdTitle">AI Cooldown</h3>
+      <p data-i18n="cdDesc">追蹤多個 AI 服務、多個帳號的冷卻時間，到期可選擇桌面通知提醒，支援排序與星號標記優先。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/image-editor/">
+      <div class="icon">🖼️</div>
+      <h3 data-i18n="imgTitle">圖片編輯器</h3>
+      <p data-i18n="imgDesc">靜態圖片可去背、縮放、裁切、調色、轉 SVG；動態圖片（GIF/APNG）可去背、加字幕、調速抽幀、逐格編輯，甚至把影片轉成動圖。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+  </div>
+</main>
+
+<footer data-i18n="footer">Simple Editing · 一組純前端小工具，程式碼公開於 <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>。</footer>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      brandTitle:'Simple Editing · 小工具箱',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      introTitle:'純瀏覽器小工具，開了就能用',
+      introDesc:'這裡收集了幾個單頁完成、不需要安裝、不需要伺服器的小工具。全部都在你的瀏覽器裡本機運作，資料不會上傳到任何地方。點下面任一張卡片即可開始使用，工具內也都有「回首頁」的按鈕可以隨時回來。',
+      mdTitle:'格式小幫手',
+      mdDesc:'左邊寫 Markdown、右邊即時預覽，工具列一鍵套用標題、清單、表格、目錄等格式，可匯出 .md 或 PDF。',
+      cdTitle:'AI Cooldown',
+      cdDesc:'追蹤多個 AI 服務、多個帳號的冷卻時間，到期可選擇桌面通知提醒，支援排序與星號標記優先。',
+      imgTitle:'圖片編輯器',
+      imgDesc:'裁切、縮放、濾鏡、去背、加文字與貼紙、動圖輸出，純瀏覽器完成，不需上傳到任何伺服器。',
+      openTool:'開啟工具 →',
+      footerHtml:'Simple Editing · 一組純前端小工具，程式碼公開於 <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>。'
+    },
+    en: {
+      brandTitle:'Simple Editing · Toolbox',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      introTitle:'Browser-only tools, ready the moment you open them',
+      introDesc:'A small collection of single-page tools that need no install and no server — everything runs locally in your browser, and nothing is ever uploaded. Click any card below to open a tool; each one has a "Home" button to bring you back here.',
+      mdTitle:'Markdown Buddy',
+      mdDesc:'Write Markdown on the left, preview live on the right. One-click headings, lists, tables, and a table of contents. Export as .md or PDF.',
+      cdTitle:'AI Cooldown',
+      cdDesc:'Track cooldown timers across multiple AI services and accounts, with optional desktop notifications, sorting, and starred priorities.',
+      imgTitle:'Image Editor',
+      imgDesc:'Static images: remove background, resize, crop, color-adjust, convert to SVG. Animated (GIF/APNG): remove background, add captions, retime/skip frames, edit frame-by-frame, or turn a video into an animation.',
+      openTool:'Open tool →',
+      footerHtml:'Simple Editing · a set of front-end-only tools. Source on <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>.'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? 'Simple Editing · 小工具箱' : 'Simple Editing · Toolbox';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+    document.querySelector('footer').innerHTML = dict.footerHtml;
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+})();
+</script>
+
+</body>
+</html>
