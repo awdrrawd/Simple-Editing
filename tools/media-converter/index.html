@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>媒體轉換器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js"></script>
+<!-- ffmpeg.wasm for transcoding -->
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/ffmpeg.min.js"></script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .tab-container{
+    border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--bg-inset); margin-bottom:24px;
+  }
+  .tab-list{
+    display:flex; border-bottom:1px solid var(--border);
+    background:var(--bg-inset);
+  }
+  .tab-list button{
+    flex:1; appearance:none; border:none; background:transparent;
+    color:var(--text-secondary); padding:12px 16px; font-size:.9rem;
+    font-weight:600; cursor:pointer; position:relative;
+  }
+  .tab-list button.active{
+    color:var(--text); border-bottom:3px solid var(--accent);
+  }
+  .tab-panel{ padding:24px; display:none; }
+  .tab-panel.active{ display:block; }
+  .input-group{ margin-bottom:16px; }
+  .input-group label{
+    display:block; margin-bottom:6px; font-weight:600;
+    color:var(--text-secondary);
+  }
+  .input-group input[type=file],
+  .input-group input[type=number],
+  .input-group select,
+  .input-group .output,
+  .input-group textarea{
+    width:100%; border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px;
+    background:var(--bg); color:var(--text);
+    font-family:monospace;
+  }
+  .input-group .output{
+    background:var(--bg-inset); color:var(--text-secondary);
+    min-height:80px; overflow-y:auto; text-align:center;
+  }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+  .progress{ width:100%; background:var(--bg-inset); border-radius:4px; overflow:hidden; height:8px; margin-top:8px; }
+  .progress div{ height:100%; background:var(--accent); width:0%; transition:width .2s; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">媒體轉換器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <div class="tab-container">
+    <div class="tab-list">
+      <button class="tab-btn active" data-tab="convert-video" data-i18n="tabConvertVideo">影片轉檔</button>
+      <button class="tab-btn" data-tab="convert-audio" data-i18n="tabConvertAudio">音樂轉檔</button>
+      <button class="tab-btn" data-tab="trim-media" data-i18n="tabTrimMedia">裁切</button>
+    </div>
+    <div class="tab-panel active" id="panel-convert-video">
+      <div class="input-group">
+        <label for="videoInput" data-i18n="labelSelectVideo">選取影片檔案</label>
+        <input type="file" id="videoInput" accept="video/*">
+      </div>
+      <div class="input-group">
+        <label for="videoFormat" data-i18n="labelOutputFormat">輸出格式</label>
+        <select id="videoFormat">
+          <option value="mp4">MP4 (H.264)</option>
+          <option value="webm">WebM (VP8)</option>
+          <option value="ogg">Ogg Theora</option>
+          <option value="gif">GIF (動圖)</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnConvertVideo" data-i18n="btnConvert">轉換</button>
+      </div>
+      <div class="progress" id="videoProgress" style="display:none;"><div></div></div>
+      <div class="output" id="videoOutput"></div>
+      <p class="hint" id="hintConvertVideo" data-i18n="hintConvertVideo">使用 ffmpeg.wasm 進行轉碼，首次載入可能需要較長時間。</p>
+    </div>
+
+    <div class="tab-panel" id="panel-convert-audio">
+      <div class="input-group">
+        <label for="audioInput" data-i18n="labelSelectAudio">選取音訊檔案</label>
+        <input type="file" id="audioInput" accept="audio/*">
+      </div>
+      <div class="input-group">
+        <label for="audioFormat" data-i18n="labelOutputFormat">輸出格式</label>
+        <select id="audioFormat">
+          <option value="mp3">MP3</option>
+          <option value="ogg">Ogg Vorbis</option>
+          <option value="wav">WAV</option>
+          <option value="aac">AAC</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnConvertAudio" data-i18n="btnConvert">轉換</button>
+      </div>
+      <div class="progress" id="audioProgress" style="display:none;"><div></div></div>
+      <div class="output" id="audioOutput"></div>
+      <p class="hint" id="hintConvertAudio" data-i18n="hintConvertAudio">使用 ffmpeg.wasm 進行轉碼。</p>
+    </div>
+
+    <div class="tab-panel" id="panel-trim-media">
+      <div class="input-group">
+        <label for="trimInput" data-i18n="labelSelectMedia">選取影片或音訊檔案</label>
+        <input type="file" id="trimInput" accept="video/*,audio/*">
+      </div>
+      <div class="input-group">
+        <label for="startTime" data-i18n="labelStartTime">開始時間 (秒)</label>
+        <input type="number" id="startTime" min="0" step="0.1" placeholder="0">
+      </div>
+      <div class="input-group">
+        <label for="endTime" data-i18n="labelEndTime">結束時間 (秒)</label>
+        <input type="number" id="endTime" min="0" step="0.1" placeholder="例如 10">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnTrimMedia" data-i18n="btnTrim">裁切</button>
+      </div>
+      <div class="progress" id="trimProgress" style="display:none;"><div></div></div>
+      <div class="output" id="trimOutput"></div>
+      <p class="hint" id="hintTrimMedia" data-i18n="hintTrimMedia">使用 ffmpeg.wasm 剪輯片段。</p>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'媒體轉換器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      tabConvertVideo:'影片轉檔',
+      tabConvertAudio:'音樂轉檔',
+      tabTrimMedia:'裁切',
+      labelSelectVideo:'選取影片檔案',
+      labelSelectAudio:'選取音訊檔案',
+      labelSelectMedia:'選取影片或音訊檔案',
+      labelOutputFormat:'輸出格式',
+      labelStartTime:'開始時間 (秒)',
+      labelEndTime:'結束時間 (秒)',
+      btnConvert:'轉換',
+      btnTrim:'裁切',
+      hintConvertVideo:'使用 ffmpeg.wasm 進行轉碼，首次載入可能需要較長時間。',
+      hintConvertAudio:'使用 ffmpeg.wasm 進行轉碼。',
+      hintTrimMedia:'使用 ffmpeg.wasm 剪輯片段。'
+    },
+    en: {
+      toolTitle:'Media Converter · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      tabConvertVideo:'Convert Video',
+      tabConvertAudio:'Convert Audio',
+      tabTrimMedia:'Trim',
+      labelSelectVideo:'Select Video File',
+      labelSelectAudio:'Select Audio File',
+      labelSelectMedia:'Select Video or Audio File',
+      labelOutputFormat:'Output Format',
+      labelStartTime:'Start Time (seconds)',
+      labelEndTime:'End Time (seconds)',
+      btnConvert:'Convert',
+      btnTrim:'Trim',
+      hintConvertVideo:'Using ffmpeg.wasm for transcoding, initial load may take time.',
+      hintConvertAudio:'Using ffmpeg.wasm for transcoding.',
+      hintTrimMedia:'Using ffmpeg.wasm to trim segment.'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? '媒體轉換器 · 純瀏覽器工具' : 'Media Converter · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  // Tab switching
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  tabButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      tabButtons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      tabPanels.forEach(p=>p.classList.remove('active'));
+      document.getElementById('panel-'+tab).classList.add('active');
+    });
+  });
+
+  // FFmpeg instance
+  const { createFFmpeg, fetchFile } = FFmpeg;
+  const ffmpeg = createFFmpeg({ log: true });
+  async function loadFFmpeg() {
+    if (!ffmpeg.isLoaded()) {
+      await ffmpeg.load();
+    }
+  }
+
+  // Helper to set progress
+  function setProgress(percent, el) {
+    el.style.display = 'block';
+    el.querySelector('div').style.width = percent + '%';
+  }
+  function hideProgress(el) {
+    el.style.display = 'none';
+    el.querySelector('div').style.width = '0%';
+  }
+
+  // Video conversion
+  const videoInput = document.getElementById('videoInput');
+  const videoFormat = document.getElementById('videoFormat');
+  const btnConvertVideo = document.getElementById('btnConvertVideo');
+  const videoProgress = document.getElementById('videoProgress');
+  const videoOutput = document.getElementById('videoOutput');
+  const hintConvertVideo = document.getElementById('hintConvertVideo');
+
+  btnConvertVideo.addEventListener('click', async () => {
+    const file = videoInput.files[0];
+    if (!file) {
+      alert(lang === 'zh' ? '請先選取影片檔案' : 'Please select a video file first');
+      return;
+    }
+    await loadFFmpeg();
+    const format = videoFormat.value;
+    // Set input file
+    ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+    // Run conversion
+    try {
+      setProgress(0, videoProgress);
+      // Use a simple ffmpeg command
+      let args = ['-i', file.name];
+      if (format === 'gif') {
+        args = ['-i', file.name, '-vf', 'fps=15,scale=320:-1:flags=lanczos', '-c:v', 'gif', file.name.replace(/\.[^.]+$/, '.gif')];
+      } else {
+        // map format to codec
+        let vcodec = 'libx264', acodec = 'aac';
+        if (format === 'webm') { vcodec = 'libvpx-vp9'; acodec = 'libopus'; }
+        else if (format === 'ogg') { vcodec = 'libtheora'; acodec = 'libvorbis'; }
+        args = ['-i', file.name, '-c:v', vcodec, '-c:a', acodec, file.name.replace(/\.[^.]+$/, `.${format}`)];
+      }
+      await ffmpeg.run(...args);
+      setProgress(100, videoProgress);
+      // Get output file
+      const data = ffmpeg.FS('readFile', args[args.length-1]);
+      const url = URL.createObjectURL(new Blob([data.buffer], {type: getMimeType(format)}));
+      // Display result
+      videoOutput.innerHTML = '';
+      if (format === 'gif') {
+        videoOutput.innerHTML = `<img src="${url}" style="max-width:100%; height:auto; border-radius:4px;">`;
+      } else {
+        videoOutput.innerHTML = `<video controls style="max-width:100%; height:auto; border-radius:4px;"><source src="${url}" type="${getMimeType(format)}"></video>`;
+      }
+      // Add download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = args[args.length-1];
+      a.textContent = lang === 'zh' ? '下載結果' : 'Download';
+      a.style.display = 'block';
+      a.style.marginTop = '12px';
+      videoOutput.appendChild(a);
+      hintConvertVideo.textContent = lang === 'zh' ? `轉換完成！` : `Conversion complete!`;
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'zh' ? '轉換失敗，請查看控制台' : 'Conversion failed, see console');
+    } finally {
+      hideProgress(videoProgress);
+    }
+  });
+
+  // Audio conversion
+  const audioInput = document.getElementById('audioInput');
+  const audioFormat = document.getElementById('audioFormat');
+  const btnConvertAudio = document.getElementById('btnConvertAudio');
+  const audioProgress = document.getElementById('audioProgress');
+  const audioOutput = document.getElementById('audioOutput');
+  const hintConvertAudio = document.getElementById('hintConvertAudio');
+
+  btnConvertAudio.addEventListener('click', async () => {
+    const file = audioInput.files[0];
+    if (!file) {
+      alert(lang === 'zh' ? '請先選取音訊檔案' : 'Please select an audio file first');
+      return;
+    }
+    await loadFFmpeg();
+    const format = audioFormat.value;
+    ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+    try {
+      setProgress(0, audioProgress);
+      let args = ['-i', file.name];
+      let acodec = 'libmp3lame';
+      if (format === 'ogg') acodec = 'libvorbis';
+      else if (format === 'wav') acodec = 'pcm_s16le';
+      else if (format === 'aac') acodec = 'aac';
+      args = ['-i', file.name, '-c:a', acodec, file.name.replace(/\.[^.]+$/, `.${format}`)];
+      await ffmpeg.run(...args);
+      setProgress(100, audioProgress);
+      const data = ffmpeg.FS('readFile', args[args.length-1]);
+      const url = URL.createObjectURL(new Blob([data.buffer], {type: getAudioMimeType(format)}));
+      audioOutput.innerHTML = `<audio controls style="max-width:100%;"><source src="${url}" type="${getAudioMimeType(format)}"></audio>`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = args[args.length-1];
+      a.textContent = lang === 'zh' ? '下載結果' : 'Download';
+      a.style.display = 'block';
+      a.style.marginTop = '12px';
+      audioOutput.appendChild(a);
+      hintConvertAudio.textContent = lang === 'zh' ? `轉換完成！` : `Conversion complete!`;
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'zh' ? '轉換失敗，請查看控制台' : 'Conversion failed, see console');
+    } finally {
+      hideProgress(audioProgress);
+    }
+  });
+
+  // Trim media
+  const trimInput = document.getElementById('trimInput');
+  const startTime = document.getElementById('startTime');
+  const endTime = document.getElementById('endTime');
+  const btnTrimMedia = document.getElementById('btnTrimMedia');
+  const trimProgress = document.getElementById('trimProgress');
+  const trimOutput = document.getElementById('trimOutput');
+  const hintTrimMedia = document.getElementById('hintTrimMedia');
+
+  btnTrimMedia.addEventListener('click', async () => {
+    const file = trimInput.files[0];
+    if (!file) {
+      alert(lang === 'zh' ? '請先選取檔案' : 'Please select a file first');
+      return;
+    }
+    const st = parseFloat(startTime.value) || 0;
+    const et = parseFloat(endTime.value);
+    if (isNaN(et) || et <= st) {
+      alert(lang === 'zh' ? '請填入有效的結束時間（必須大於開始時間）' : 'Please enter a valid end time (must be greater than start time)');
+      return;
+    }
+    await loadFFmpeg();
+    ffmpeg.FS('writeFile', file.name, await fetchFile(file));
+    try {
+      setProgress(0, trimProgress);
+      const duration = et - st;
+      // Determine if video or audio by mime type
+      const isVideo = file.type.startsWith('video/');
+      let args = ['-i', file.name, '-ss', st.toString(), '-t', duration.toString()];
+      if (isVideo) {
+        args = args.concat(['-c:v', 'libx264', '-c:a', 'aac', file.name.replace(/\.[^.]+$/, '_trimmed.mp4')]);
+      } else {
+        args = args.concat(['-c:a', 'libmp3lame', file.name.replace(/\.[^.]+$/, '_trimmed.mp3')]);
+      }
+      await ffmpeg.run(...args);
+      setProgress(100, trimProgress);
+      const data = ffmpeg.FS('readFile', args[args.length-1]);
+      const url = URL.createObjectURL(new Blob([data.buffer], {type: isVideo ? 'video/mp4' : 'audio/mpeg'}));
+      trimOutput.innerHTML = isVideo ?
+        `<video controls style="max-width:100%;"><source src="${url}" type="video/mp4"></video>` :
+        `<audio controls style="max-width:100%;"><source src="${url}" type="audio/mpeg"></audio>`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = args[args.length-1];
+      a.textContent = lang === 'zh' ? '下載結果' : 'Download';
+      a.style.display = 'block';
+      a.style.marginTop = '12px';
+      trimOutput.appendChild(a);
+      hintTrimMedia.textContent = lang === 'zh' ? `裁切完成！` : `Trim complete!`;
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'zh' ? '裁切失敗，請查看控制台' : 'Trim failed, see console');
+    } finally {
+      hideProgress(trimProgress);
+    }
+  });
+
+  // Helper MIME types
+  function getMimeType(fmt) {
+    switch(fmt) {
+      case 'mp4': return 'video/mp4';
+      case 'webm': return 'video/webm';
+      case 'ogg': return 'video/ogg';
+      case 'gif': return 'image/gif';
+      default: return 'video/mp4';
+    }
+  }
+  function getAudioMimeType(fmt) {
+    switch(fmt) {
+      case 'mp3': return 'audio/mpeg';
+      case 'ogg': return 'audio/ogg';
+      case 'wav': return 'audio/wav';
+      case 'aac': return 'audio/aac';
+      default: return 'audio/mpeg';
+    }
+  }
+
+  // Initialize home button text
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+</body>
+</html>

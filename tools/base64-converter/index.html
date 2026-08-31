@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Base64 轉換器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js"></script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .tab-container{
+    border:1px solid var(--border); border-radius:var(--radius);
+    background:var(--bg-inset); margin-bottom:24px;
+  }
+  .tab-list{
+    display:flex; border-bottom:1px solid var(--border);
+    background:var(--bg-inset);
+  }
+  .tab-list button{
+    flex:1; appearance:none; border:none; background:transparent;
+    color:var(--text-secondary); padding:12px 16px; font-size:.9rem;
+    font-weight:600; cursor:pointer; position:relative;
+  }
+  .tab-list button.active{
+    color:var(--text); border-bottom:3px solid var(--accent);
+  }
+  .tab-panel{ padding:24px; display:none; }
+  .tab-panel.active{ display:block; }
+  .input-group{ margin-bottom:16px; }
+  .input-group label{
+    display:block; margin-bottom:6px; font-weight:600;
+    color:var(--text-secondary);
+  }
+  .input-group input[type=file],
+  .input-group textarea,
+  .input-group .output{
+    width:100%; border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px;
+    background:var(--bg); color:var(--text);
+    font-family:monospace;
+    resize:vertical;
+  }
+  .input-group textarea{
+    min-height:120px;
+  }
+  .input-group .output{
+    background:var(--bg-inset); color:var(--text-secondary);
+    font-size:.9rem; min-height:80px; overflow-y:auto;
+  }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">Base64 轉換器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <div class="tab-container">
+    <div class="tab-list">
+      <button class="tab-btn active" data-tab="image2base64" data-i18n="tabImage2Base64">圖片 → Base64</button>
+      <button class="tab-btn" data-tab="base642image" data-i18n="tabBase642Image">Base64 → 圖片</button>
+    </div>
+    <div class="tab-panel active" id="panel-image2base64">
+      <div class="input-group">
+        <label for="imageInput" data-i18n="labelSelectImage">選取圖片檔案</label>
+        <input type="file" id="imageInput" accept="image/*">
+      </div>
+      <div class="input-group">
+        <label for="base64Output" data-i18n="labelBase64Output">Base64 結果 (data:URL)</label>
+        <textarea id="base64Output" readonly></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnConvertImage2Base64" data-i18n="btnConvert">轉換</button>
+        <button class="btn" id="btnCopyBase64" data-i18n="btnCopy">複製</button>
+      </div>
+      <p class="hint" id="hintImage2Base64" data-i18n="hintImage2Base64">支援 PNG、JPEG、WebP、GIF 等格式。轉換後會產出可直接在 HTML/CSS 中使用的 data:URL。</p>
+    </div>
+    <div class="tab-panel" id="panel-base642image">
+      <div class="input-group">
+        <label for="base64Input" data-i18n="labelBase64Input">貼上 Base64 字串 (含 data:URL 前綴或純 base64)</label>
+        <textarea id="base64Input" rows="3" placeholder="例如：data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." data-i18n="placeholderBase64"></textarea>
+      </div>
+      <div class="input-group">
+        <label for="imagePreview" data-i18n="labelImagePreview">預覽</label>
+        <div class="output" id="imagePreview"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnConvertBase642Image" data-i18n="btnConvert">轉換</button>
+        <button class="btn" id="btnDownloadImage" data-i18n="btnDownload">下載圖片</button>
+      </div>
+      <p class="hint" id="hintBase642Image" data-i18n="hintBase642Image">支援常見圖片格式。下載的檔案將根據 MIME 類型自動命名。</p>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'Base64 轉換器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      tabImage2Base64:'圖片 → Base64',
+      tabBase642Image:'Base64 → 圖片',
+      labelSelectImage:'選取圖片檔案',
+      labelBase64Output:'Base64 結果 (data:URL)',
+      labelBase64Input:'貼上 Base64 字串 (含 data:URL 前綴或純 base64)',
+      labelImagePreview:'預覽',
+      placeholderBase64':'例如：data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+      btnConvert:'轉換',
+      btnCopy:'複製',
+      btnDownload:'下載圖片',
+      hintImage2Base64:'支援 PNG、JPEG、WebP、GIF 等格式。轉換後會產出可直接在 HTML/CSS 中使用的 data:URL。',
+      hintBase642Image:'支援常見圖片格式。下載的檔案將根據 MIME 類型自動命名。'
+    },
+    en: {
+      toolTitle:'Base64 Converter · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      tabImage2Base64:'Image → Base64',
+      tabBase642Image:'Base64 → Image',
+      labelSelectImage:'Select Image File',
+      labelBase64Output:'Base64 Result (data:URL)',
+      labelBase64Input:'Paste Base64 string (with data:URL prefix or raw base64)',
+      labelImagePreview:'Preview',
+      placeholderBase64:'e.g., data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...',
+      btnConvert:'Convert',
+      btnCopy:'Copy',
+      btnDownload:'Download Image',
+      hintImage2Base64:'Supports PNG, JPEG, WebP, GIF, etc. Output is a data:URL ready for use in HTML/CSS.',
+      hintBase642Image:'Supports common image formats. Downloaded file will be named according to its MIME type.'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? 'Base64 轉換器 · 純瀏覽器工具' : 'Base64 Converter · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  // Tab switching
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  tabButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      tabButtons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      tabPanels.forEach(p=>p.classList.remove('active'));
+      document.getElementById('panel-'+tab).classList.add('active');
+    });
+  });
+
+  // Image to Base64 conversion
+  const imageInput = document.getElementById('imageInput');
+  const base64Output = document.getElementById('base64Output');
+  const btnConvertImage2Base64 = document.getElementById('btnConvertImage2Base64');
+  const btnCopyBase64 = document.getElementById('btnCopyBase64');
+  const hintImage2Base64 = document.getElementById('hintImage2Base64');
+
+  btnConvertImage2Base64.addEventListener('click', () => {
+    const file = imageInput.files[0];
+    if (!file) {
+      alert(lang === 'zh' ? '請先選取一張圖片' : 'Please select an image first');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const base64 = e.target.result; // already a data:URL
+      base64Output.value = base64;
+      hintImage2Base64.textContent = lang === 'zh'
+        ? `已轉換！大小：${Math.floor(base64.length * 3 / 4 / 1024)} KB`
+        : `Converted! Size: ${Math.floor(base64.length * 3 / 4 / 1024)} KB`;
+    };
+    reader.onerror = function() {
+      alert(lang === 'zh' ? '讀取檔案時發生錯誤' : 'Error reading file');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  btnCopyBase64.addEventListener('click', () => {
+    base64Output.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
+  });
+
+  // Base64 to Image conversion
+  const base64Input = document.getElementById('base64Input');
+  const imagePreview = document.getElementById('imagePreview');
+  const btnConvertBase642Image = document.getElementById('btnConvertBase642Image');
+  const btnDownloadImage = document.getElementById('btnDownloadImage');
+  const hintBase642Image = document.getElementById('hintBase642Image');
+
+  btnConvertBase642Image.addEventListener('click', () => {
+    const b64 = base64Input.value.trim();
+    if (!b64) {
+      alert(lang === 'zh' ? '請貼上 Base64 字串' : 'Please paste a Base64 string');
+      return;
+    }
+    // Remove data:URL prefix if present
+    let match = b64.match(/^data:image\/([^;]+);base64,/);
+    let mimeType = 'image/png'; // default
+    let cleanBase64 = b64;
+    if (match) {
+      mimeType = match[1];
+      cleanBase64 = b64.substring(match[0].length);
+    }
+    try {
+      // Decode base64
+      const binary = atob(cleanBase64);
+      const array = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([array], {type: mimeType});
+      const url = URL.createObjectURL(blob);
+      // Display preview
+      imagePreview.innerHTML = `<img src="${url}" style="max-width:100%; height:auto; border-radius:4px;">`;
+      // Set up download
+      btnDownloadImage.onclick = () => {
+        const ext = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+        const filename = `converted.${ext}`;
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
+      btnDownloadImage.style.display = 'inline-block';
+      hintBase642Image.textContent = lang === 'zh'
+        ? `已轉換！MIME 類型：${mimeType}`
+        : `Converted! MIME type: ${mimeType}`;
+    } catch (e) {
+      alert(lang === 'zh' ? 'Base64 解碼失敗，請檢查字串是否正確' : 'Base64 decoding failed. Please check the string');
+      imagePreview.innerHTML = '';
+      btnDownloadImage.style.display = 'none';
+    }
+  });
+
+  // Initialize home button text (shared.js will handle it via paintHomeLinks on DOMContentLoaded)
+  // But we can also trigger it now if needed:
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+</body>
+</html>
