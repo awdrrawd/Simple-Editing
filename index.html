@@ -153,6 +153,20 @@
       <p data-i18n="urlEncoderDesc">編碼與解碼網址參數，支援 encodeURIComponent 與 decodeURIComponent。</p>
       <div class="go" data-i18n="openTool">開啟工具 →</div>
     </a>
+
+    <a class="card" href="tools/svg-optimizer/">
+      <div class="icon">🎯</div>
+      <h3 data-i18n="svgTitle">SVG 優化器</h3>
+      <p data-i18n="svgDesc">貼上 SVG 或選取檔案，移除冗餘資訊、縮短顏色值、清理未使用的 ID 等，讓 SVG 檔案更小、更乾淨。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/audio-editor/">
+      <div class="icon">🔊</div>
+      <h3 data-i18n="audioTitle">聲音編輯器</h3>
+      <p data-i18n="audioDesc">載入音訊檔案，調整音量與音高（會影響播放速度），即時預覽波形，並可混合多軌道播放或下載混合後的 WAV 檔案。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
   </div>
 </main>
 
@@ -183,6 +197,10 @@
       jsonFormatterDesc:'美化、壓縮與驗證 JSON，支援標準格式，即時顯示結果。',
       urlEncoderTitle:'URL 編碼 / 解碼',
       urlEncoderDesc:'編碼與解碼網址參數，支援 encodeURIComponent 與 decodeURIComponent。',
+      svgTitle:'SVG 優化器',
+      svgDesc:'貼上 SVG 或選取檔案，移除冗餘資訊、縮短顏色值、清理未使用的 ID 等，讓 SVG 檔案更小、更乾淨。',
+      audioTitle:'聲音編輯器',
+      audioDesc:'載入音訊檔案，調整音量與音高（會影響播放速度），即時預覽波形，並可混合多軌道播放或下載混合後的 WAV 檔案。',
       openTool:'開啟工具 →',
       footerHtml:'Simple Editing · 一組純前端小工具，程式碼公開於 <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>。'
     },
@@ -207,40 +225,10 @@
       jsonFormatterDesc:'Beautify, compress and validate JSON, supports standard format, instant results.',
       urlEncoderTitle:'URL Encoder / Decoder',
       urlEncoderDesc:'Encode and decode URL parameters, supports encodeURIComponent and decodeURIComponent.',
-      openTool:'Open tool →',
-      footerHtml:'Simple Editing · a set of front-end-only tools. Source on <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>.'
-    }',
-      mdDesc:'左邊寫 Markdown、右邊即時預覽，工具列一鍵套用標題、清單、表格、目錄等格式，可匯出 .md 或 PDF。',
-      cdTitle:'AI Cooldown',
-      cdDesc:'追蹤多個 AI 服務、多個帳號的冷卻時間，到期可選擇桌面通知提醒，支援排序與星號標記優先。',
-      imgTitle:'圖片編輯器',
-      imgDesc:'裁切、縮放、濾鏡、去背、加文字與貼紙、動圖輸出，純瀏覽器完成，不需上傳到任何伺服器。',
-      base64Title:'Base64',
-      base64Desc:'任意檔案或文字 ⇄ Base64 編解碼，支援所有檔案類型，產出標準 Base64 字串。',
-      mediaTitle:'媒體轉換器',
-      mediaDesc:'影片、音訊轉檔與裁切，支援常見格式，使用純瀏覽器的 ffmpeg.wasm。',
-      sharpResizeTitle:'銳利圖片縮放',
-      sharpResizeDesc:'使用高品質演算法（Lanczos 3）縮放圖片，縮小時保留銳利度與細節，特別適合 PNG。',
-      openTool:'開啟工具 →',
-      footerHtml:'Simple Editing · 一組純前端小工具，程式碼公開於 <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>。'
-    },
-    en: {
-      brandTitle:'Simple Editing · Toolbox',
-      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
-      introTitle:'Browser-only tools, ready the moment you open them',
-      introDesc:'A small collection of single-page tools that need no install and no server — everything runs locally in your browser, and nothing is ever uploaded. Click any card below to open a tool; each one has a "Home" button to bring you back here.',
-      mdTitle:'Markdown Buddy',
-      mdDesc:'Write Markdown on the left, preview live on the right. One-click headings, lists, tables, and a table of contents. Export as .md or PDF.',
-      cdTitle:'AI Cooldown',
-      cdDesc:'Track cooldown timers across multiple AI services and accounts, with optional desktop notifications, sorting, and starred priorities.',
-      imgTitle:'Image Editor',
-      imgDesc:'Static images: remove background, resize, crop, color-adjust, convert to SVG. Animated (GIF/APNG): remove background, add captions, retime/skip frames, edit frame-by-frame, or turn a video into an animation.',
-      base64Title:'Base64',
-      base64Desc:'Any file or text ⇄ Base64 encode/decode, supports all file types, outputs standard Base64 string.',
-      mediaTitle:'Media Converter',
-      mediaDesc:'Video, audio conversion and trimming, supports common formats, using browser-based ffmpeg.wasm.',
-      sharpResizeTitle:'Sharp Image Resize',
-      sharpResizeDesc:'High-quality resizing (Lanczos 3) that preserves sharpness and detail when downscaling, especially useful for PNG images.',
+      svgTitle:'SVG Optimizer',
+      svgDesc:'Paste SVG or select file, remove redundant information, shorten color values, clean unused IDs, etc., to make SVG files smaller and cleaner.',
+      audioTitle:'Audio Editor',
+      audioDesc:'Load audio files, adjust volume and pitch (affects playback speed), preview waveform in real-time, and mix multiple tracks or download mixed WAV files. All processing happens locally in the browser without uploading any data.',
       openTool:'Open tool →',
       footerHtml:'Simple Editing · a set of front-end-only tools. Source on <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>.'
     }

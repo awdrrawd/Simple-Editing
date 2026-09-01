@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CSV ↔ JSON 轉換器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js"></script>
+<!-- PapaParse for CSV parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papa.min.js"></script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .tab-container{
+    border-bottom:1px solid var(--border);
+    margin-bottom:400px; overflow-y:auto; }
+  .tab-list{
+    display:flex; border-bottom:1px solid var(--border);
+    background:var(--bg-inset);
+  }
+  .tab-list button{
+    flex:1; appearance:none; border:none; background:transparent;
+    color:var(--text-secondary); padding:12px 16px; font-size:.9rem;
+    font-weight:600; cursor:pointer; position:relative;
+  }
+  .tab-list button.active{
+    color:var(--text); border-bottom:3px solid var(--accent);
+  }
+  .tab-panel{ display:none; padding:24px; }
+  .tab-panel.active{ display:block; }
+  .input-group{ margin-bottom:16px; }
+  .input-group label{
+    display:block; margin-bottom:6px; font-weight:600;
+    color:var(--text-secondary);
+  }
+  .input-group input[type=file],
+  .input-group textarea,
+  .input-group select{
+    width:100%; border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px;
+    background:var(--bg); color:var(--text);
+    font-family:monospace;
+  }
+  .input-group textarea{
+    min-height:120px;
+    resize:vertical;
+  }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+  .file-info{ font-size:.88rem; color:var(--text-secondary); margin-top:4px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">CSV ↔ JSON 轉換器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <div class="tab-container">
+    <div class="tab-list">
+      <button class="tab-btn active" data-tab="csv2json" data-i18n="tabCsvToJson">CSV → JSON</button>
+      <button class="tab-btn" data-tab="json2csv" data-i18n="tabJsonToCsv">JSON → CSV</button>
+    </div>
+    <div class="tab-panel active" id="panel-csv2json">
+      <div class="input-group">
+        <label for="csvFileInput" data-i18n="labelCsvFile">選取 CSV 檔案</label>
+        <input type="file" id="csvFileInput" accept=".csv,text/csv">
+      </div>
+      <div class="input-group">
+        <label for="csvOptions" data-i18n="labelCsvOptions">CSV 選項</label>
+        <div>
+          <label><input type="checkbox" id="csvHeader" checked> 第一行為標題</label><br>
+          <label><input type="checkbox" id="csvDynamicTyping"> 自動轉換數據類型</label>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnCsvToJson" data-i18n="btnConvert">轉換為 JSON</button>
+        <button class="btn" id="btnCopyJson" data-i18n="btnCopy">複製結果</button>
+        <button class="btn" id="btnDownloadJson" data-i18n="btnDownload">下載 JSON</button>
+      </div>
+      <div class="input-group">
+        <label for="jsonOutput" data-i18n="labelJsonOutput">JSON 結果</label>
+        <textarea id="jsonOutput" readonly></textarea>
+      </div>
+      <div class="file-info" id="csvFileInfo"></div>
+      <p class="hint" id="hintCsv2json" data-i18n="hintCsv2json">支援標準 CSV 格式。轉換後可複製或下載 JSON 檔案。</p>
+    </div>
+    <div class="tab-panel" id="panel-json2csv">
+      <div class="input-group">
+        <label for="jsonInput" data-i18n="labelJsonInput">貼上 JSON 或選取檔案</label>
+        <div>
+          <input type="file" id="jsonFileInput" accept=".json,application/json">
+          <div class="hint" data-i18n="hintOrJsonFile">或直接貼上 JSON 內容</div>
+          <textarea id="jsonTextInput" placeholder="在此貼上要轉換的 JSON..." data-i18n="placeholderJson"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" id="btnJsonToCsv" data-i18n="btnConvert">轉換為 CSV</button>
+        <button class="btn" id="btnCopyCsv" data-i18n="btnCopy">複製結果</button>
+        <button class="btn" id="btnDownloadCsv" data-i18n="btnDownload">下載 CSV</button>
+      </div>
+      <div class="input-group">
+        <label for="csvOutput" data-i18n="labelCsvOutput">CSV 結果</label>
+        <textarea id="csvOutput" readonly></textarea>
+      </div>
+      <div class="file-info" id="jsonFileInfo"></div>
+      <p class="hint" id="hintJson2csv" data-i18n="hintJson2csv">支援標準 JSON 陣列或物件。轉換後可複製或下載 CSV 檔案。</p>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'CSV ↔ JSON 轉換器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      tabCsvToJson:'CSV → JSON',
+      tabJsonToCsv:'JSON → CSV',
+      labelCsvFile:'選取 CSV 檔案',
+      labelCsvOptions:'CSV 選項',
+      btnConvert:'轉換',
+      btnCopy:'複製結果',
+      btnDownload:'下載結果',
+      labelJsonOutput:'JSON 結果',
+      labelJsonInput:'貼上 JSON 或選取檔案',
+      hintOrJsonFile:'或直接貼上 JSON 內容',
+      placeholderJson:'在此貼上要轉換的 JSON...',
+      labelCsvOutput:'CSV 結果',
+      hintCsv2json:'支援標準 CSV 格式。轉換後可複製或下載 JSON 檔案。',
+      hintJson2csv:'支援標準 JSON 陣列或物件。轉換後可複製或下載 CSV 檔案。',
+      csvHeader:'第一行為標題',
+      csvDynamicTyping:'自動轉換數據類型'
+    },
+    en: {
+      toolTitle:'CSV ↔ JSON Converter · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      tabCsvToJson:'CSV → JSON',
+      tabJsonToCsv:'JSON → CSV',
+      labelCsvFile:'Select CSV File',
+      labelCsvOptions:'CSV Options',
+      btnConvert:'Convert',
+      btnCopy:'Copy Result',
+      btnDownload:'Download Result',
+      labelJsonOutput:'JSON Result',
+      labelJsonInput:'Paste JSON or select file',
+      hintOrJsonFile:'or paste JSON directly',
+      placeholderJson:'Paste JSON to convert here...',
+      labelCsvOutput:'CSV Result',
+      hintCsv2json:'Supports standard CSV format. Converted JSON can be copied or downloaded.',
+      hintJson2csv:'Supports standard JSON array or object. Converted CSV can be copied or downloaded.',
+      csvHeader:'First row is header',
+      csvDynamicTyping:'Enable dynamic typing'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? 'CSV ↔ JSON 轉換器 · 純瀏覽器工具' : 'CSV ↔ JSON Converter · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  // Tab switching
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const tabPanels = document.querySelectorAll('.tab-panel');
+  tabButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      tabButtons.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const tab = btn.dataset.tab;
+      tabPanels.forEach(p=>p.classList.remove('active'));
+      document.getElementById('panel-'+tab).classList.add('active');
+    });
+  });
+
+  // CSV to JSON
+  const csvFileInput = document.getElementById('csvFileInput');
+  const csvHeaderCheckbox = document.getElementById('csvHeader');
+  const csvDynamicTypingCheckbox = document.getElementById('csvDynamicTyping');
+  const btnCsvToJson = document.getElementById('btnCsvToJson');
+  const btnCopyJson = document.getElementById('btnCopyJson');
+  const btnDownloadJson = document.getElementById('btnDownloadJson');
+  const jsonOutput = document.getElementById('jsonOutput');
+  const csvFileInfo = document.getElementById('csvFileInfo');
+  const hintCsv2json = document.getElementById('hintCsv2json');
+
+  btnCsvToJson.addEventListener('click', () => {
+    const file = csvFileInput.files[0];
+    if (!file) {
+      alert(lang === 'zh' ? '請先選取 CSV 檔案' : 'Please select a CSV file first');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const csv = e.target.result;
+      const config = {
+        header: csvHeaderCheckbox.checked,
+        dynamicTyping: csvDynamicTypingCheckbox.checked,
+        skipEmptyLines: true,
+        complete: function(results) {
+          const json = JSON.stringify(results.data, null, 2);
+          jsonOutput.value = json;
+          jsonOutput.select();
+          btnDownloadJson.onclick = () => {
+            const blob = new Blob([json], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const name = file.name.replace(/\.[^.]+$/, '');
+            a.download = `${name}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+          btnDownloadJson.style.display = 'inline-block';
+          btnCopyJson.style.display = 'inline-block';
+          hintCsv2json.textContent = lang === 'zh'
+            ? `轉換成功！${results.data.length} 筆資料已轉為 JSON。`
+            : `Conversion successful! ${results.data.length} rows converted to JSON.`;
+        },
+        error: function(err) {
+          console.error(err);
+          alert(lang === 'zh' ? 'CSV 解析失敗' : 'CSV parsing failed');
+        }
+      };
+      Papa.parse(csv, config);
+    };
+    reader.onerror = function() {
+      alert(lang === 'zh' ? '讀取檔案時發生錯誤' : 'Error reading file');
+    };
+    reader.readAsText(file);
+    csvFileInfo.textContent = lang === 'zh'
+      ? `已選取：${file.name} (${Math.floor(file.size/1024)} KB)`
+      : `Selected: ${file.name} (${Math.floor(file.size/1024)} KB)`;
+  });
+
+  btnCopyJson.addEventListener('click', () => {
+    jsonOutput.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
+  });
+
+  // JSON to CSV
+  const jsonFileInput = document.getElementById('jsonFileInput');
+  const jsonTextInput = document.getElementById('jsonTextInput');
+  const btnJsonToCsv = document.getElementById('btnJsonToCsv');
+  const btnCopyCsv = document.getElementById('btnCopyCsv');
+  const btnDownloadCsv = document.getElementById('btnDownloadCsv');
+  const csvOutput = document.getElementById('csvOutput');
+  const jsonFileInfo = document.getElementById('jsonFileInfo');
+  const hintJson2csv = document.getElementById('hintJson2csv');
+
+  btnJsonToCsv.addEventListener('click', () => {
+    let jsonString = '';
+    let sourceName = '';
+
+    // Check if file is selected
+    if (jsonFileInput.files.length > 0) {
+      const file = jsonFileInput.files[0];
+      sourceName = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        jsonString = e.target.result;
+        processJson();
+      };
+      reader.onerror = function() {
+        alert(lang === 'zh' ? '讀取檔案時發生錯誤' : 'Error reading file');
+      };
+      reader.readAsText(file);
+      jsonFileInfo.textContent = lang === 'zh'
+        ? `已選取：${file.name} (${Math.floor(file.size/1024)} KB)`
+        : `Selected: ${file.name} (${Math.floor(file.size/1024)} KB)`;
+    } else if (jsonTextInput.value.trim() !== '') {
+      jsonString = jsonTextInput.value;
+      sourceName = 'text input';
+      processJson();
+    } else {
+      alert(lang === 'zh' ? '請選擇檔案或貼上 JSON' : 'Please select a file or paste JSON');
+      return;
+    }
+
+    function processJson() {
+      try {
+        const jsonData = JSON.parse(jsonString);
+        // Ensure we have an array of objects
+        let csvData;
+        if (Array.isArray(jsonData)) {
+          csvData = jsonData;
+        } else if (typeof jsonData === 'object' && jsonData !== null) {
+          // Single object -> wrap in array
+          csvData = [jsonData];
+        } else {
+          throw new Error('JSON must be an array or object');
+        }
+        const csv = Papa.unparse(csvData);
+        csvOutput.value = csv;
+        csvOutput.select();
+        btnDownloadCsv.onclick = () => {
+          const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${sourceName.replace(/\.[^.]+$/, '')}.csv`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+        btnDownloadCsv.style.display = 'inline-block';
+        btnCopyCsv.style.display = 'inline-block';
+        hintJson2csv.textContent = lang === 'zh'
+          ? `轉換成功！已產出 ${csvData.length} 筆資料的 CSV。`
+          : `Conversion successful! Generated CSV for ${csvData.length} rows.`;
+      } catch (e) {
+        console.error(e);
+        alert(lang === 'zh' ? 'JSON 解析失敗：' + e.message : 'JSON parsing failed: ' + e.message);
+      }
+    }
+  });
+
+  btnCopyCsv.addEventListener('click', () => {
+    csvOutput.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
+  });
+
+  // Initialize home button text
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+</body>
+</html>

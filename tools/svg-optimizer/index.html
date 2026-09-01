@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SVG 優化器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js"></script>
+<!-- SVGO library via Skypack -->
+<script type="module">
+  import { optimize } from 'https://cdn.skypack.dev/svgo@2.8.0';
+  window.SVGO = { optimize };
+</script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .input-group{ margin-bottom:16px; }
+  .input-group label{
+    display:block; margin-bottom:6px; font-weight:600;
+    color:var(--text-secondary);
+  }
+  .input-group textarea,
+  .input-group input[type=file],
+  .input-group select{
+    width:100%; border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px;
+    background:var(--bg); color:var(--text);
+    font-family:monospace;
+  }
+  .input-group textarea{
+    min-height:150px;
+    resize:vertical;
+  }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+  .file-info{ font-size:.88rem; color:var(--text-secondary); margin-top:4px; }
+  .preview-box{ background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-top:12px; text-align:center; }
+  .preview-box svg{max-width:100%; max-height:300px; display:block; margin:0 auto;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">SVG 優化器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <div class="input-group">
+    <label for="svgInput" data-i18n="labelInput">貼上 SVG 或選取檔案</label>
+    <div>
+      <input type="file" id="svgFileInput" accept=".svg,image/svg+xml">
+      <div class="hint" data-i18n="hintOrFile">或直接貼上 SVG 內容</div>
+      <textarea id="svgTextInput" placeholder="在此貼上 SVG 程式碼..." data-i18n="placeholderSvg"></textarea>
+    </div>
+  </div>
+  <div class="input-group">
+    <label for="optimizeOptions" data-i18n="labelOptions">優化選項（進階）</label>
+    <div>
+      <label><input type="checkbox" id="optRemoveViewBox" checked> 移除不必要的 viewBox</label><br>
+      <label><input type="checkbox" id="optCleanupIDs" checked> 清理未使用的 ID</label><br>
+      <label><input type="checkbox" id="optRemoveMetadata" checked> 移除 metadata</label><br>
+      <label><input type="checkbox" id="optConvertColors" checked> 轉換顏色為縮寫形式</label><br>
+      <label><input type="checkbox" id="optRemoveDimensions" checked> 移除寬高屬性（如果有 viewBox）</label>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn primary" id="btnOptimize" data-i18n="btnOptimize">優化 SVG</button>
+    <button class="btn" id="btnCopy" data-i18n="btnCopy">複製結果</button>
+    <button class="btn" id="btnDownload" data-i18n="btnDownload">下載 SVG</button>
+  </div>
+  <div class="input-group">
+    <label for="svgOutput" data-i18n="labelOutput">優化後的 SVG</label>
+    <textarea id="svgOutput" readonly></textarea>
+  </div>
+  <div class="preview-box" id="svgPreview" style="display:none;">
+    <h3 data-i18n="labelPreview">預覽</h3>
+    <div id="svgPreviewContainer"></div>
+  </div>
+  <p class="hint" id="hintOptimize" data-i18n="hintOptimize">支援標準 SVG 格式。優化後會顯示縮減比例，可直接複製或下載。</p>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'SVG 優化器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      labelInput:'貼上 SVG 或選取檔案',
+      hintOrFile:'或直接貼上 SVG 內容',
+      placeholderSvg:'在此貼上 SVG 程式碼...',
+      labelOptions:'優化選項（進階）',
+      btnOptimize:'優化 SVG',
+      btnCopy:'複製結果',
+      btnDownload:'下載 SVG',
+      labelOutput:'優化後的 SVG',
+      labelPreview:'預覽',
+      hintOptimize:'支援標準 SVG 格式。優化後會顯示縮減比例，可直接複製或下載。',
+      optRemoveViewBox:'移除不必要的 viewBox',
+      optCleanupIDs:'清理未使用的 ID',
+      optRemoveMetadata:'移除 metadata',
+      optConvertColors:'轉換顏色為縮寫形式',
+      optRemoveDimensions:'移除寬高屬性（如果有 viewBox）'
+    },
+    en: {
+      toolTitle:'SVG Optimizer · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      labelInput:'Paste SVG or select file',
+      hintOrFile:'or paste SVG directly',
+      placeholderSvg:'Paste SVG code here...',
+      labelOptions:'Optimization Options (advanced)',
+      btnOptimize:'Optimize SVG',
+      btnCopy:'Copy Result',
+      btnDownload:'Download SVG',
+      labelOutput:'Optimized SVG',
+      labelPreview:'Preview',
+      hintOptimize:'Supports standard SVG format. Optimization shows size reduction, can copy or download.',
+      optRemoveViewBox:'Remove unnecessary viewBox',
+      optCleanupIDs:'Clean up unused IDs',
+      optRemoveMetadata:'Remove metadata',
+      optConvertColors:'Convert colors to shorthand',
+      optRemoveDimensions:'Remove width/height attributes (if viewBox present)'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? 'SVG 優化器 · 純瀏覽器工具' : 'SVG Optimizer · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  const svgFileInput = document.getElementById('svgFileInput');
+  const svgTextInput = document.getElementById('svgTextInput');
+  const btnOptimize = document.getElementById('btnOptimize');
+  const btnCopy = document.getElementById('btnCopy');
+  const btnDownload = document.getElementById('btnDownload');
+  const svgOutput = document.getElementById('svgOutput');
+  const svgPreview = document.getElementById('svgPreview');
+  const svgPreviewContainer = document.getElementById('svgPreviewContainer');
+  const hintOptimize = document.getElementById('hintOptimize');
+  const optRemoveViewBox = document.getElementById('optRemoveViewBox');
+  const optCleanupIDs = document.getElementById('optCleanupIDs');
+  const optRemoveMetadata = document.getElementById('optRemoveMetadata');
+  const optConvertColors = document.getElementById('optConvertColors');
+  const optRemoveDimensions = document.getElementById('optRemoveDimensions');
+
+  btnOptimize.addEventListener('click', async () => {
+    let svgString = '';
+    let sourceName = '';
+
+    // Check if file is selected
+    if (svgFileInput.files.length > 0) {
+      const file = svgFileInput.files[0];
+      sourceName = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        svgString = e.target.result;
+        processSVG();
+      };
+      reader.onerror = function() {
+        alert(lang === 'zh' ? '讀取檔案時發生錯誤' : 'Error reading file');
+      };
+      reader.readAsText(file);
+    } else if (svgTextInput.value.trim() !== '') {
+      svgString = svgTextInput.value;
+      sourceName = 'pasted SVG';
+      processSVG();
+    } else {
+      alert(lang === 'zh' ? '請選擇檔案或貼上 SVG' : 'Please select a file or paste SVG');
+      return;
+    }
+
+    function processSVG() {
+      // Build SVGO options based on checkboxes
+      const opts = {
+        plugins: [
+          { name: 'removeViewBox', active: optRemoveViewBox.checked },
+          { name: 'cleanupIDs', active: optCleanupIDs.checked },
+          { name: 'removeMetadata', active: optRemoveMetadata.checked },
+          { name: 'convertColors', active: optConvertColors.params ? { shortname: false } : { shortname: true } }, // Actually convertColors plugin doesn't have params; we just enable/disable
+          { name: 'removeDimensions', active: optRemoveDimensions.checked }
+        ]
+      };
+      // Filter out falsy plugins
+      opts.plugins = opts.plugins.filter(p => p.active);
+
+      try {
+        const result = window.SVGO.optimize(svgString, opts);
+        const optimized = result.data;
+        const info = result.info;
+        svgOutput.value = optimized;
+        // Show preview
+        try {
+          svgPreviewContainer.innerHTML = '';
+          const svgBlob = new Blob([optimized], {type: 'image/svg+xml'});
+          const url = URL.createObjectURL(svgBlob);
+          const img = document.createElement('img');
+          img.src = url;
+          img.onload = () => URL.revokeObjectURL(url);
+          svgPreviewContainer.appendChild(img);
+          svgPreview.style.display = 'block';
+        } catch (e) {
+          console.error('Failed to create preview:', e);
+          svgPreview.style.display = 'none';
+        }
+        // Update hint with size reduction
+        const reduction = Math.round((1 - info.size / info.originalSize) * 100);
+        hintOptimize.textContent = lang === 'zh'
+          ? `優化完成！大小減少 ${reduction}% (${info.originalSize} → ${info.size} 位元組)。`
+          : `Optimization complete! Size reduced by ${reduction}% (${info.originalSize} → ${info.size} bytes).`;
+        // Setup download
+        btnDownload.onclick = () => {
+          const blob = new Blob([optimized], {type: 'image/svg+xml'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const name = sourceName.replace(/\.[^.]+$/, '') || 'optimized';
+          a.download = `${name}.svg`;
+          a.click();
+          URL.revokeObjectURL(url);
+        };
+        btnDownload.style.display = 'inline-block';
+        btnCopy.style.display = 'inline-block';
+      } catch (e) {
+        console.error(e);
+        alert(lang === 'zh' ? 'SVG 優化失敗：' + e.message : 'SVG optimization failed: ' + e.message);
+        svgOutput.value = '';
+        svgPreview.style.display = 'none';
+        hintOptimize.textContent = lang === 'zh' ? '優化失敗，請檢查 SVG 是否有效。' : 'Optimization failed, please check SVG validity.';
+        btnDownload.style.display = 'none';
+        btnCopy.style.display = 'none';
+      }
+    }
+  });
+
+  btnCopy.addEventListener('click', () => {
+    svgOutput.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
+  });
+
+  // Initialize home button text
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+</body>
+</html>

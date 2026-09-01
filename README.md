@@ -12,6 +12,15 @@
 | 📝 [格式小幫手](tools/markdown-editor/) | Markdown 即時預覽編輯器，工具列一鍵套用格式，可匯出 `.md` 或 PDF | `/tools/markdown-editor/` |
 | ⏱️ [AI Cooldown](tools/ai-cooldown/) | 多帳號 AI 服務冷卻時間追蹤器，支援桌面通知、排序、星號優先 | `/tools/ai-cooldown/` |
 | 🖼️ [圖片編輯器](tools/image-editor/) | 裁切、濾鏡、去背、加文字貼紙、動圖輸出的純瀏覽器圖片編輯器 | `/tools/image-editor/` |
+| 🔤 [Base64](tools/base64-converter/) | 任意檔案或文字 ⇄ Base64 編解碼，支援所有檔案類型，產出標準 Base64 字串 | `/tools/base64-converter/` |
+| 🎞️ [媒體轉換器](tools/media-converter/) | 影片、音訊轉檔與裁切，支援常見格式，使用純瀏覽器的 ffmpeg.wasm | `/tools/media-converter/` |
+| 🔍 [銳利圖片縮放](tools/image-sharp-resize/) | 使用高品質演算法（Lanczos 3）縮放圖片，縮小時保留銳利度與細節，特別適合 PNG | `/tools/image-sharp-resize/` |
+| 🧮 [JSON 格式化器](tools/json-formatter/) | 美化、壓縮與驗證 JSON，支援標準格式，即時顯示結果 | `/tools/json-formatter/` |
+| 🔗 [URL 編碼 / 解碼](tools/url-encoder/) | 編碼與解碼網址參數，支援 encodeURIComponent 和 decodeURIComponent | `/tools/url-encoder/` |
+| 🎯 [SVG 優化器](tools/svg-optimizer/) | 貼上 SVG 或選取檔案，移除冗餘資訊、縮短顏色值、清理未使用的 ID 等，讓 SVG 檔案更小、更乾淨 | `/tools/svg-optimizer/` |
+| 🔊 [聲音編輯器](tools/audio-editor/) | 載入音訊檔案，調整音量與音高（會影響播放速度），即時預覽波形，並可混合多軌道播放或下載混合後的 WAV 檔案 | `/tools/audio-editor/` |
+| 🔐 [雜湊計算器](tools/hash-calculator/) | 輸入文字或檔案，計算 MD5、SHA-1、SHA-256 等雜湊值。所有計算在瀏覽器本機完成，不會上傳您的資料 | `/tools/hash-calculator/` |
+| 🔄 [CSV ↔ JSON 轉換器](tools/csv-converter/) | 上傳 CSV 檔案轉為 JSON 結構，或貼上 JSON 轉為 CSV 檔案。全部在瀏覽器本機完成，不會上傳任何資料 | `/tools/csv-converter/` |
 
 每個工具都附有自己的 `README.md`，說明詳細用法。
 
@@ -30,7 +39,34 @@ Simple-Editing/
     ├── ai-cooldown/
     │   ├── index.html
     │   └── README.md
-    └── image-editor/
+    ├── image-editor/
+    │   ├── index.html
+    │   └── README.md
+    ├── base64-converter/
+    │   ├── index.html
+    │   └── README.md
+    ├── media-converter/
+    │   ├── index.html
+    │   └── README.md
+    ├── image-sharp-resize/
+    │   ├── index.html
+    │   └── README.md
+    ├── json-formatter/
+    │   ├── index.html
+    │   └── README.md
+    ├── url-encoder/
+    │   ├── index.html
+    │   └── README.md
+    ├── svg-optimizer/
+    │   ├── index.html
+    │   └── README.md
+    ├── audio-editor/
+    │   ├── index.html
+    │   └── README.md
+    ├── hash-calculator/
+    │   ├── index.html
+    │   └── README.md
+    └── csv-converter/
         ├── index.html
         └── README.md
 ```

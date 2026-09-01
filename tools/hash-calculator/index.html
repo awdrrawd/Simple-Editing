@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>雜湊計算器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js"></script>
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .input-group{ margin-bottom:16px; }
+  .input-group label{
+    display:block; margin-bottom:6px; font-weight:600;
+    color:var(--text-secondary);
+  }
+  .input-group input[type=file],
+  .input-group textarea,
+  .input-group select{
+    width:100%; border:1px solid var(--border);
+    border-radius:var(--radius); padding:12px;
+    background:var(--bg); color:var(--text);
+    font-family:monospace;
+  }
+  .input-group textarea{
+    min-height:100px;
+    resize:vertical;
+  }
+  .btn-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+  .result-box{ background:var(--bg-inset); border:1px solid var(--border); border-radius:var(--radius); padding:12px; margin-top:12px; }
+  .result-item{ display:flex; justify-content:space-between; padding:4px 0; }
+  .result-label{ font-weight:600; color:var(--text-secondary); }
+  .result-value{ font-family:monospace; word-break:break-all; }
+  .copy-btn{ appearance:none; border:1px solid var(--border); background:var(--bg-inset); color:var(--text); border-radius:4px; padding:2px 6px; font-size:.75rem; cursor:pointer; }
+  .copy-btn:hover{ background:var(--bg-hover); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">雜湊計算器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <div class="input-group">
+    <label for="hashInput" data-i18n="labelInput">輸入文字或選取檔案</label>
+    <div>
+      <input type="file" id="hashFileInput">
+      <div class="hint" data-i18n="hintOrText">或直接貼上文字內容</div>
+      <textarea id="hashTextInput" placeholder="在此貼上要計算雜湊的文字..." data-i18n="placeholderText"></textarea>
+    </div>
+  </div>
+  <div class="input-group">
+    <label for="hashAlgorithm" data-i18n="labelAlgorithm">雜湊演算法</label>
+    <select id="hashAlgorithm">
+      <option value="MD5">MD5</option>
+      <option value="SHA-1">SHA-1</option>
+      <option value="SHA-256">SHA-256</option>
+      <option value="SHA-384">SHA-384</option>
+      <option value="SHA-512">SHA-512</option>
+    </select>
+  </div>
+  <div class="btn-row">
+    <button class="btn primary" id="btnCalculate" data-i18n="btnCalculate">計算雜湊</button>
+    <button class="btn" id="btnCopy" data-i18n="btnCopy">複製結果</button>
+  </div>
+  <div class="result-box" id="resultBox" style="display:none;">
+    <div class="result-item">
+      <span class="result-label" data-i18n="labelAlgorithmResult">演算法：</span>
+      <span class="result-value" id="resultAlgorithm"></span>
+    </div>
+    <div class="result-item">
+      <span class="result-label" data-i18n="labelHashResult">雜湊值：</span>
+      <span class="result-value" id="resultHash"></span>
+      <button class="copy-btn" id="btnCopyHash" data-i18n="btnCopy">複製</button>
+    </div>
+  </div>
+  <p class="hint" id="hintCalculate" data-i18n="hintCalculate">支援 MD5、SHA-1、SHA-256、SHA-384、SHA-512。所有計算在瀏覽器本機完成，不會上傳您的資料。</p>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'雜湊計算器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      labelInput:'輸入文字或選取檔案',
+      hintOrText:'或直接貼上文字內容',
+      placeholderText:'在此貼上要計算雜湊的文字...',
+      labelAlgorithm:'雜湊演算法',
+      btnCalculate:'計算雜湊',
+      btnCopy:'複製結果',
+      labelAlgorithmResult:'演算法：',
+      labelHashResult:'雜湊值：',
+      hintCalculate:'支援 MD5、SHA-1、SHA-256、SHA-384、SHA-512。所有計算在瀏覽器本機完成，不會上傳您的資料。'
+    },
+    en: {
+      toolTitle:'Hash Calculator · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      labelInput:'Enter text or select file',
+      hintOrText:'or paste text directly',
+      placeholderText:'Paste text to hash here...',
+      labelAlgorithm:'Hash Algorithm',
+      btnCalculate:'Calculate Hash',
+      btnCopy:'Copy Result',
+      labelAlgorithmResult:'Algorithm:',
+      labelHashResult:'Hash Value:',
+      hintCalculate:'Supports MD5, SHA-1, SHA-256, SHA-384, SHA-512. All computations are done locally in your browser, no data is uploaded.'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? '雜湊計算器 · 純瀏覽器工具' : 'Hash Calculator · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  const hashFileInput = document.getElementById('hashFileInput');
+  const hashTextInput = document.getElementById('hashTextInput');
+  const hashAlgorithm = document.getElementById('hashAlgorithm');
+  const btnCalculate = document.getElementById('btnCalculate');
+  const btnCopy = document.getElementById('btnCopy');
+  const resultBox = document.getElementById('resultBox');
+  const resultAlgorithm = document.getElementById('resultAlgorithm');
+  const resultHash = document.getElementById('resultHash');
+  const btnCopyHash = document.getElementById('btnCopyHash');
+  const hintCalculate = document.getElementById('hintCalculate');
+
+  btnCalculate.addEventListener('click', async () => {
+    let dataToHash = '';
+    let sourceName = '';
+
+    // Check if file is selected
+    if (hashFileInput.files.length > 0) {
+      const file = hashFileInput.files[0];
+      sourceName = file.name;
+      const arrayBuffer = await file.arrayBuffer();
+      dataToHash = arrayBuffer;
+    } else if (hashTextInput.value.trim() !== '') {
+      dataToHash = hashTextInput.value;
+      sourceName = 'text input';
+    } else {
+      alert(lang === 'zh' ? '請選擇檔案或輸入文字' : 'Please select a file or enter text');
+      return;
+    }
+
+    // Convert string to ArrayBuffer if needed
+    if (typeof dataToHash === 'string') {
+      const encoder = new TextEncoder();
+      dataToHash = encoder.encode(dataToHash);
+    }
+
+    try {
+      const hashBuffer = await crypto.subtle.digest(hashAlgorithm.value, dataToHash);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      resultAlgorithm.textContent = hashAlgorithm.value;
+      resultHash.textContent = hashHex;
+      resultBox.style.display = 'block';
+      hintCalculate.textContent = lang === 'zh'
+        ? `計算完成！${sourceName} 的 ${hashAlgorithm.value} 雜湊已產出。`
+        : `Calculation complete! ${hashAlgorithm.value} hash for ${sourceName} generated.`;
+    } catch (e) {
+      console.error(e);
+      alert(lang === 'zh' ? '計算雜湊時發生錯誤' : 'Error calculating hash');
+    }
+  });
+
+  btnCopy.addEventListener('click', () => {
+    resultHash.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
+  });
+
+  btnCopyHash.addEventListener('click', () => {
+    resultHash.select();
+    document.execCommand('copy');
+    alert(lang === 'zh' ? '已複製雜湊值' : 'Copied hash value');
+  });
+
+  // Initialize home button text
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+</body>
+</html>
