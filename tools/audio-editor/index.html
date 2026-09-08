@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聲音編輯器 · 純瀏覽器工具</title>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
+<style>
+  :root{ --radius:10px; }
+  html[data-theme="light"]{
+    --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
+    --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --shadow:0 1px 2px rgba(0,0,0,0.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --shadow:0 1px 2px rgba(0,0,0,0.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; min-height:100vh;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",Helvetica,Arial,sans-serif;
+  }
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; padding:14px 24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--border);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-text);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  }
+  h1{ font-size:1.05rem; margin:0; }
+  .btn{
+    appearance:none; border:1px solid var(--border); background:var(--bg-inset);
+    color:var(--text); border-radius:8px; padding:7px 12px; font-size:.82rem;
+    font-weight:600; cursor:pointer; font-family:inherit;
+  }
+  .btn:hover{ background:var(--bg-hover); }
+  .controls{ display:flex; gap:8px; }
+
+  main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
+  .track{ border:1px solid var(--border); border-radius:var(--radius); background:var(--bg-inset); padding:12px; margin-bottom:16px; }
+  .track-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .track-title{ font-weight:600; }
+  .track-controls{ display:flex; gap:8px; align-items:center; }
+  .slider-group{ display:flex; flex-direction:column; gap:4px; }
+  .slider-group label{ font-size:.82rem; color:var(--text-secondary); }
+  input[type=range]{ width:120px; }
+  .btn-row{ display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+  .btn.primary{ background:var(--accent); color:var(--accent-text); border-color:var(--accent); }
+  .btn.primary:hover{ background:var(--accent-hover); }
+  .btn.ghost{ background:transparent; }
+  .hint{ font-size:.88rem; color:var(--text-secondary); margin-top:8px; }
+  .waveform{ height:60px; background:var(--bg); border:1px solid var(--border); border-radius:4px; margin-top:8px; position:relative; overflow:hidden; }
+  .waveform canvas{ display:block; width:100%; height:100%; }
+  .progress-bar{ height:4px; background:var(--bg-inset); border-radius:2px; margin-top:8px; overflow:hidden; }
+  .progress-bar div{ height:100%; width:0%; background:var(--accent); transition:width .1s linear; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SE</div>
+    <h1 data-i18n="toolTitle">聲音編輯器</h1>
+  </div>
+  <div class="controls">
+    <button class="btn" id="themeToggle" data-i18n="themeBtn">🌓 主題</button>
+    <button class="btn" id="localeToggle" data-i18n="localeBtn">🌐 語系</button>
+    <a href="../../index.html" class="btn" data-se-home></a>
+  </div>
+</div>
+
+<main>
+  <section>
+    <h2 data-i18n="loadTitle">載入音訊</h2>
+    <div class="input-group">
+      <label for="audioFiles" data-i18n="labelFiles">選取音訊檔案（可多選）</label>
+      <input type="file" id="audioFiles" accept="audio/*" multiple>
+    </div>
+    <button class="btn primary" id="btnLoad" data-i18n="btnLoad">載入音訊</button>
+    <p class="hint" id="hintLoad" data-i18n="hintLoad">支援常見格式如 MP3、WAV、OGG。載入後會顯示波形與調整滑桿。</p>
+  </section>
+
+  <section id="tracksContainer"></section>
+
+  <section>
+    <button class="btn primary" id="btnPlayAll" data-i18n="btnPlayAll">播放全部</button>
+    <button class="btn" id="btnStopAll" data-i18n="btnStopAll">停止全部</button>
+    <div class="progress-bar" id="globalProgress"><div></div></div>
+    <p class="hint" id="hintPlayback" data-i18n="hintPlayback">播放時會混合所有軌道。調整音量與音高會即時影響混合結果。</p>
+  </section>
+</main>
+
+<script>
+(function(){
+  const root = document.documentElement;
+  const I18N = {
+    zh: {
+      toolTitle:'聲音編輯器 · 純瀏覽器工具',
+      themeBtn:'🌓 主題', localeBtn:'🌐 語系',
+      loadTitle:'載入音訊',
+      labelFiles:'選取音訊檔案（可多選）',
+      btnLoad:'載入音訊',
+      hintLoad:'支援常見格式如 MP3、WAV、OGG。載入後會顯示波形與調整滑桿。',
+      btnPlayAll:'播放全部',
+      btnStopAll:'停止全部',
+      hintPlayback:'播放時會混合所有軌道。調整音量與音高會即時影響混合結果。',
+      trackTitle:'軌道',
+      btnRemove:'移除',
+      btnPlay:'播放',
+      btnPause:'暫停',
+      sliderVolume:'音量',
+      sliderPitch:'音高（會影響速度）',
+      btnDownloadMix:'下載混合音訊'
+    },
+    en: {
+      toolTitle:'Audio Editor · Browser-only tool',
+      themeBtn:'🌓 Theme', localeBtn:'🌐 Language',
+      loadTitle:'Load Audio',
+      labelFiles:'Select audio files (multiple)',
+      btnLoad:'Load Audio',
+      hintLoad:'Supports common formats like MP3, WAV, OGG. After loading, waveforms and sliders will appear.',
+      btnPlayAll:'Play All',
+      btnStopAll:'Stop All',
+      hintPlayback:'Playback mixes all tracks. Adjusting volume and pitch will affect the mixed output in real time.',
+      trackTitle:'Track',
+      btnRemove:'Remove',
+      btnPlay:'Play',
+      btnPause:'Pause',
+      sliderVolume:'Volume',
+      sliderPitch:'Pitch (affects speed)',
+      btnDownloadMix:'Download Mixed Audio'
+    }
+  };
+
+  let lang = SharedSettings.getLang();
+
+  function applyLocale(){
+    const dict = I18N[lang];
+    root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
+    document.title = lang === 'zh' ? '聲音編輯器 · 純瀏覽器工具' : 'Audio Editor · Browser-only tool';
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
+    });
+  }
+  applyLocale();
+  document.getElementById('localeToggle').addEventListener('click', () => {
+    lang = lang === 'zh' ? 'en' : 'zh';
+    SharedSettings.setLang(lang);
+    applyLocale();
+  });
+
+  // ---- theme ----
+  let userOverride = SharedSettings.hasExplicitTheme();
+  function applyTheme(theme){ root.setAttribute('data-theme', theme); }
+  applyTheme(SharedSettings.getTheme());
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if(!userOverride) applyTheme(e.matches ? 'dark' : 'light');
+  });
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    userOverride = true;
+    const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    SharedSettings.setTheme(next);
+    applyTheme(next);
+  });
+
+  // Initialize home button text
+  SharedSettings.paintHomeLinks(SharedSettings.getLang());
+})();
+</script>
+
+<script src="../../assets/audio-editor.js?v=20260907-2"></script>
+</body>
+</html>

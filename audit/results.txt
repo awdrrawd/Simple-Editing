@@ -1,0 +1,68 @@
+PASS syntax index.html
+PASS unique IDs index.html
+PASS CSS variables index.html
+PASS syntax tools/ai-cooldown/index.html
+PASS unique IDs tools/ai-cooldown/index.html
+PASS CSS variables tools/ai-cooldown/index.html
+PASS syntax tools/audio-editor/index.html
+PASS unique IDs tools/audio-editor/index.html
+FAIL CSS variables tools/audio-editor/index.html: --accent-hover
+PASS syntax tools/base64-converter/index.html
+PASS unique IDs tools/base64-converter/index.html
+FAIL CSS variables tools/base64-converter/index.html: --accent-hover
+PASS syntax tools/csv-converter/index.html
+PASS unique IDs tools/csv-converter/index.html
+FAIL CSS variables tools/csv-converter/index.html: --accent-hover
+PASS syntax tools/hash-calculator/index.html
+PASS unique IDs tools/hash-calculator/index.html
+FAIL CSS variables tools/hash-calculator/index.html: --accent-hover
+PASS syntax tools/image-editor/index.html
+PASS unique IDs tools/image-editor/index.html
+PASS CSS variables tools/image-editor/index.html
+PASS syntax tools/image-sharp-resize/index.html
+PASS unique IDs tools/image-sharp-resize/index.html
+FAIL CSS variables tools/image-sharp-resize/index.html: --accent-hover
+PASS syntax tools/json-formatter/index.html
+PASS unique IDs tools/json-formatter/index.html
+FAIL CSS variables tools/json-formatter/index.html: --accent-hover
+PASS syntax tools/markdown-editor/index.html
+PASS unique IDs tools/markdown-editor/index.html
+PASS CSS variables tools/markdown-editor/index.html
+PASS syntax tools/media-converter/index.html
+PASS unique IDs tools/media-converter/index.html
+FAIL CSS variables tools/media-converter/index.html: --accent-hover
+PASS syntax tools/svg-optimizer/index.html
+PASS unique IDs tools/svg-optimizer/index.html
+FAIL CSS variables tools/svg-optimizer/index.html: --accent-hover
+PASS syntax tools/url-encoder/index.html
+PASS unique IDs tools/url-encoder/index.html
+FAIL CSS variables tools/url-encoder/index.html: --accent-hover
+PASS home link ai-cooldown
+PASS home link audio-editor
+PASS home link base64-converter
+FAIL home link csv-converter
+FAIL home link hash-calculator
+PASS home link image-editor
+PASS home link image-sharp-resize
+PASS home link json-formatter
+PASS home link markdown-editor
+PASS home link media-converter
+PASS home link svg-optimizer
+PASS home link url-encoder
+PASS Base64 ASCII
+FAIL Base64 UTF-8 Chinese: 編碼失敗
+FAIL Base64 decoded text is not HTML: <pre><b>hello</b></pre>
+FAIL Base64 1 MiB file expression: Maximum call stack size exceeded
+PASS SHA-256 known vector
+FAIL MD5 known vector: 計算雜湊時發生錯誤
+FAIL hash copy from span: resultHash.select is not a function
+DOMException [NotSupportedError]: Unrecognized algorithm name
+    at normalizeAlgorithm (node:internal/crypto/util:559:11)
+    at normalizeAlgorithm (node:internal/crypto/util:531:12)
+    at SubtleCrypto.digest (node:internal/crypto/webcrypto:86:15)
+    at Object.click (evalmachine.<anonymous>:101:46)
+    at D:\_Data\Documents\GitHub\liko\Simple-Editing\audit\check.cjs:44:78
+PASS JSON beautify
+PASS JSON invalid input
+PASS URL Unicode round trip
+PASS URL invalid escape

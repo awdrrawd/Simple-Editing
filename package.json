@@ -1,0 +1,24 @@
+{
+  "name": "simple-editing",
+  "private": true,
+  "scripts": {
+    "test": "node audit/check.cjs",
+    "vendor": "node audit/vendor.cjs",
+    "build": "npm test && node scripts/build.cjs",
+    "fixtures": "python audit/fixtures.py"
+  },
+  "dependencies": {
+    "@ffmpeg/core": "0.12.10",
+    "@ffmpeg/ffmpeg": "0.12.15",
+    "dompurify": "3.4.15",
+    "esbuild": "0.25.12",
+    "gif.js": "0.2.0",
+    "highlight.js": "11.9.0",
+    "imagetracerjs": "1.2.6",
+    "js-md5": "0.8.3",
+    "marked": "11.1.1",
+    "papaparse": "5.4.1",
+    "pica": "9.0.1",
+    "svgo": "4.1.0"
+  }
+}

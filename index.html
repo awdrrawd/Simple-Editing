@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Simple Editing · 小工具箱</title>
-<script src="assets/shared.js"></script>
+<script src="assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="assets/shared.css">
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -118,6 +119,57 @@
       <p data-i18n="imgDesc">靜態圖片可去背、縮放、裁切、調色、轉 SVG；動態圖片（GIF/APNG）可去背、加字幕、調速抽幀、逐格編輯，甚至把影片轉成動圖。</p>
       <div class="go" data-i18n="openTool">開啟工具 →</div>
     </a>
+
+    <a class="card" href="tools/base64-converter/">
+      <div class="icon">🔤</div>
+      <h3 data-i18n="base64Title">Base64</h3>
+      <p data-i18n="base64Desc">任意檔案或文字 ⇄ Base64 編解碼，支援所有檔案類型，產出標準 Base64 字串。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/media-converter/">
+      <div class="icon">🎞️</div>
+      <h3 data-i18n="mediaTitle">媒體轉換器</h3>
+      <p data-i18n="mediaDesc">影片、音訊轉檔與裁切，支援常見格式，使用純瀏覽器的 ffmpeg.wasm。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/image-sharp-resize/">
+      <div class="icon">🔍</div>
+      <h3 data-i18n="sharpResizeTitle">銳利圖片縮放</h3>
+      <p data-i18n="sharpResizeDesc">使用高品質演算法（Lanczos 3）縮放圖片，縮小時保留銳利度與細節，特別適合 PNG。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/json-formatter/">
+      <div class="icon">🧮</div>
+      <h3 data-i18n="jsonFormatterTitle">JSON 格式化器</h3>
+      <p data-i18n="jsonFormatterDesc">美化、壓縮與驗證 JSON，支援標準格式，即時顯示結果。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/url-encoder/">
+      <div class="icon">🔗</div>
+      <h3 data-i18n="urlEncoderTitle">URL 編碼 / 解碼</h3>
+      <p data-i18n="urlEncoderDesc">編碼與解碼網址參數，支援 encodeURIComponent 與 decodeURIComponent。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/svg-optimizer/">
+      <div class="icon">🎯</div>
+      <h3 data-i18n="svgTitle">SVG 優化器</h3>
+      <p data-i18n="svgDesc">貼上 SVG 或選取檔案，移除冗餘資訊、縮短顏色值、清理未使用的 ID 等，讓 SVG 檔案更小、更乾淨。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+
+    <a class="card" href="tools/audio-editor/">
+      <div class="icon">🔊</div>
+      <h3 data-i18n="audioTitle">聲音編輯器</h3>
+      <p data-i18n="audioDesc">載入音訊檔案，調整音量與音高（會影響播放速度），即時預覽波形，並可混合多軌道播放或下載混合後的 WAV 檔案。</p>
+      <div class="go" data-i18n="openTool">開啟工具 →</div>
+    </a>
+<a class="card" href="tools/hash-calculator/"><div class="icon">🔐</div><h3 data-se-zh="雜湊計算器" data-se-en="Hash Calculator">雜湊計算器</h3><p data-se-zh="計算文字或檔案的 MD5 與 SHA 雜湊值。" data-se-en="Calculate MD5 and SHA hashes of text or files.">計算文字或檔案的 MD5 與 SHA 雜湊值。</p><div class="go" data-se-zh="開啟工具 →" data-se-en="Open tool →">開啟工具 →</div></a>
+<a class="card" href="tools/csv-converter/"><div class="icon">🔄</div><h3 data-se-zh="CSV ↔ JSON 轉換器" data-se-en="CSV ↔ JSON Converter">CSV ↔ JSON 轉換器</h3><p data-se-zh="轉換 CSV 與 JSON，支援含引號與換行的欄位。" data-se-en="Convert CSV and JSON, including quoted and multiline fields.">轉換 CSV 與 JSON，支援含引號與換行的欄位。</p><div class="go" data-se-zh="開啟工具 →" data-se-en="Open tool →">開啟工具 →</div></a>
   </div>
 </main>
 
@@ -138,6 +190,20 @@
       cdDesc:'追蹤多個 AI 服務、多個帳號的冷卻時間，到期可選擇桌面通知提醒，支援排序與星號標記優先。',
       imgTitle:'圖片編輯器',
       imgDesc:'裁切、縮放、濾鏡、去背、加文字與貼紙、動圖輸出，純瀏覽器完成，不需上傳到任何伺服器。',
+      base64Title:'Base64',
+      base64Desc:'任意檔案或文字 ⇄ Base64 編解碼，支援所有檔案類型，產出標準 Base64 字串。',
+      mediaTitle:'媒體轉換器',
+      mediaDesc:'影片、音訊轉檔與裁切，支援常見格式，使用純瀏覽器的 ffmpeg.wasm。',
+      sharpResizeTitle:'銳利圖片縮放',
+      sharpResizeDesc:'使用高品質演算法（Lanczos 3）縮放圖片，縮小時保留銳利度與細節，特別適合 PNG。',
+      jsonFormatterTitle:'JSON 格式化器',
+      jsonFormatterDesc:'美化、壓縮與驗證 JSON，支援標準格式，即時顯示結果。',
+      urlEncoderTitle:'URL 編碼 / 解碼',
+      urlEncoderDesc:'編碼與解碼網址參數，支援 encodeURIComponent 與 decodeURIComponent。',
+      svgTitle:'SVG 優化器',
+      svgDesc:'貼上 SVG 或選取檔案，移除冗餘資訊、縮短顏色值、清理未使用的 ID 等，讓 SVG 檔案更小、更乾淨。',
+      audioTitle:'聲音編輯器',
+      audioDesc:'載入音訊檔案，調整音量與音高（會影響播放速度），即時預覽波形，並可混合多軌道播放或下載混合後的 WAV 檔案。',
       openTool:'開啟工具 →',
       footerHtml:'Simple Editing · 一組純前端小工具，程式碼公開於 <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>。'
     },
@@ -152,6 +218,20 @@
       cdDesc:'Track cooldown timers across multiple AI services and accounts, with optional desktop notifications, sorting, and starred priorities.',
       imgTitle:'Image Editor',
       imgDesc:'Static images: remove background, resize, crop, color-adjust, convert to SVG. Animated (GIF/APNG): remove background, add captions, retime/skip frames, edit frame-by-frame, or turn a video into an animation.',
+      base64Title:'Base64',
+      base64Desc:'Any file or text ⇄ Base64 encode/decode, supports all file types, outputs standard Base64 string.',
+      mediaTitle:'Media Converter',
+      mediaDesc:'Video, audio conversion and trimming, supports common formats, using browser-based ffmpeg.wasm.',
+      sharpResizeTitle:'Sharp Image Resize',
+      sharpResizeDesc:'High-quality resizing (Lanczos 3) that preserves sharpness and detail when downscaling, especially useful for PNG images.',
+      jsonFormatterTitle:'JSON Formatter',
+      jsonFormatterDesc:'Beautify, compress and validate JSON, supports standard format, instant results.',
+      urlEncoderTitle:'URL Encoder / Decoder',
+      urlEncoderDesc:'Encode and decode URL parameters, supports encodeURIComponent and decodeURIComponent.',
+      svgTitle:'SVG Optimizer',
+      svgDesc:'Paste SVG or select file, remove redundant information, shorten color values, clean unused IDs, etc., to make SVG files smaller and cleaner.',
+      audioTitle:'Audio Editor',
+      audioDesc:'Load audio files, adjust volume and pitch (affects playback speed), preview waveform in real-time, and mix multiple tracks or download mixed WAV files. All processing happens locally in the browser without uploading any data.',
       openTool:'Open tool →',
       footerHtml:'Simple Editing · a set of front-end-only tools. Source on <a href="https://github.com/awdrrawd/Simple-Editing" target="_blank" rel="noopener">GitHub</a>.'
     }
@@ -165,7 +245,10 @@
     document.title = lang === 'zh' ? 'Simple Editing · 小工具箱' : 'Simple Editing · Toolbox';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
     document.querySelector('footer').innerHTML = dict.footerHtml;
   }
@@ -194,3 +277,4 @@
 
 </body>
 </html>
+

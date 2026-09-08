@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AI Cooldown · 冷卻時間記事器</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -515,10 +516,10 @@
       <div class="brand-mark">AI</div>
       <h1>AI Cooldown <small id="langSub">冷卻追蹤 · 多帳號</small></h1>
     </div>
-    <div class="theme-lang">
-      <button class="chip-btn" id="themeToggle">暗色</button>
-      <button class="chip-btn" id="langToggle">EN</button>
-      <a class="chip-btn" id="homeBtn" href="../../index.html" data-se-home>🏠 回首頁</a>
+    <div class="controls">
+      <button class="btn" id="themeToggle">暗色</button>
+      <button class="btn" id="localeToggle">EN</button>
+      <a class="btn" id="homeBtn" href="../../index.html" data-se-home>🏠 回首頁</a>
     </div>
   </div>
 
@@ -749,7 +750,7 @@
     const resetAllBtn = document.getElementById('resetAllBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const themeToggle = document.getElementById('themeToggle');
-    const langToggle = document.getElementById('langToggle');
+    const langToggle = document.getElementById('localeToggle');
 
     const sortNameBtn = document.getElementById('sortName');
     const sortTimeBtn = document.getElementById('sortTime');
@@ -765,6 +766,7 @@
     // ----- 語言更新 -----
     function updateLanguage() {
       const t = LANG[currentLang];
+      document.documentElement.lang = currentLang === 'en' ? 'en' : 'zh-Hant';
       document.querySelector('h1').innerHTML = `${t.title} <small id="langSub">${t.sub}</small>`;
       document.getElementById('lblSite').textContent = t.site;
       document.getElementById('lblAccount').textContent = t.account;
@@ -795,6 +797,8 @@
       document.getElementById('statReadyLabel').textContent = t.statReady;
       document.getElementById('statCoolingLabel').textContent = t.statCooling;
       document.getElementById('footerTip').textContent = t.footer;
+      accountInput.placeholder = currentLang === 'en' ? 'Work account' : '工作用';
+      noteInput.placeholder = currentLang === 'en' ? 'Progress / note' : '進度/備忘';
       cancelEditBtn.textContent = t.cancel;
       notifyToggleLabel.textContent = t.notifyLabel;
       themeToggle.textContent = currentTheme === 'dark' ? t.themeLight : t.themeDark;
@@ -815,8 +819,8 @@
 
     function applyTheme(theme, persist) {
       currentTheme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
       if (persist) {
-        document.documentElement.setAttribute('data-theme', theme);
         SharedSettings.setTheme(theme);
       }
       updateThemeButtonLabel();
@@ -827,15 +831,14 @@
         applyTheme(SharedSettings.getTheme(), true);
       } else {
         // 沒有手動設定過，跟隨瀏覽器/系統的亮暗模式
-        document.documentElement.removeAttribute('data-theme');
+        document.documentElement.setAttribute('data-theme', SharedSettings.getTheme());
         currentTheme = systemPrefersDark() ? 'dark' : 'light';
         updateThemeButtonLabel();
       }
       if (window.matchMedia) {
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
           if (!SharedSettings.hasExplicitTheme()) {
-            currentTheme = e.matches ? 'dark' : 'light';
-            updateThemeButtonLabel();
+            applyTheme(e.matches ? 'dark' : 'light', false);
           }
         });
       }
@@ -1302,3 +1305,4 @@
 </script>
 </body>
 </html>
+
