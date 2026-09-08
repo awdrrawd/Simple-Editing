@@ -4,21 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CSV ↔ JSON 轉換器 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <!-- PapaParse for CSV parsing -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papa.min.js"></script>
+<script src="../../assets/vendor/papaparse.min.js"></script>
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -51,7 +52,7 @@
   main{ max-width:960px; margin:0 auto; padding:40px 24px 64px; }
   .tab-container{
     border-bottom:1px solid var(--border);
-    margin-bottom:400px; overflow-y:auto; }
+    margin-bottom:24px; overflow-y:auto; }
   .tab-list{
     display:flex; border-bottom:1px solid var(--border);
     background:var(--bg-inset);
@@ -119,8 +120,8 @@
       <div class="input-group">
         <label for="csvOptions" data-i18n="labelCsvOptions">CSV 選項</label>
         <div>
-          <label><input type="checkbox" id="csvHeader" checked> 第一行為標題</label><br>
-          <label><input type="checkbox" id="csvDynamicTyping"> 自動轉換數據類型</label>
+          <label><input type="checkbox" id="csvHeader" checked><span data-se-zh="第一行為標題" data-se-en="First row is header"> 第一行為標題</span></label><br>
+          <label><input type="checkbox" id="csvDynamicTyping"><span data-se-zh="自動轉換數據類型" data-se-en="Convert numeric and boolean values"> 自動轉換數據類型</span></label>
         </div>
       </div>
       <div class="btn-row">
@@ -213,7 +214,10 @@
     document.title = lang === 'zh' ? 'CSV ↔ JSON 轉換器 · 純瀏覽器工具' : 'CSV ↔ JSON Converter · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();
@@ -275,6 +279,12 @@
         dynamicTyping: csvDynamicTypingCheckbox.checked,
         skipEmptyLines: true,
         complete: function(results) {
+          if (results.errors.length) {
+            jsonOutput.value = '';
+            hintCsv2json.textContent = results.errors.map(err => err.message).join('; ');
+            btnDownloadJson.onclick = null;
+            return;
+          }
           const json = JSON.stringify(results.data, null, 2);
           jsonOutput.value = json;
           jsonOutput.select();

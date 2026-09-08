@@ -4,24 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SVG 優化器 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
-<!-- SVGO library via Skypack -->
-<script type="module">
-  import { optimize } from 'https://cdn.skypack.dev/svgo@2.8.0';
-  window.SVGO = { optimize };
-</script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -105,11 +101,11 @@
   <div class="input-group">
     <label for="optimizeOptions" data-i18n="labelOptions">優化選項（進階）</label>
     <div>
-      <label><input type="checkbox" id="optRemoveViewBox" checked> 移除不必要的 viewBox</label><br>
-      <label><input type="checkbox" id="optCleanupIDs" checked> 清理未使用的 ID</label><br>
-      <label><input type="checkbox" id="optRemoveMetadata" checked> 移除 metadata</label><br>
-      <label><input type="checkbox" id="optConvertColors" checked> 轉換顏色為縮寫形式</label><br>
-      <label><input type="checkbox" id="optRemoveDimensions" checked> 移除寬高屬性（如果有 viewBox）</label>
+      <label><input type="checkbox" id="optRemoveViewBox" checked><span data-se-zh="移除不必要的 viewBox" data-se-en="Remove unnecessary viewBox"> 移除不必要的 viewBox</span></label><br>
+      <label><input type="checkbox" id="optCleanupIDs" checked><span data-se-zh="清理未使用的 ID" data-se-en="Clean unused IDs"> 清理未使用的 ID</span></label><br>
+      <label><input type="checkbox" id="optRemoveMetadata" checked><span data-se-zh="移除 metadata" data-se-en="Remove metadata"> 移除 metadata</span></label><br>
+      <label><input type="checkbox" id="optConvertColors" checked><span data-se-zh="轉換顏色為縮寫形式" data-se-en="Shorten colors"> 轉換顏色為縮寫形式</span></label><br>
+      <label><input type="checkbox" id="optRemoveDimensions" checked><span data-se-zh="移除寬高屬性（如果有 viewBox）" data-se-en="Remove dimensions (preserve viewBox)"> 移除寬高屬性（如果有 viewBox）</span></label>
     </div>
   </div>
   <div class="btn-row">
@@ -180,7 +176,10 @@
     document.title = lang === 'zh' ? 'SVG 優化器 · 純瀏覽器工具' : 'SVG Optimizer · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();
@@ -245,24 +244,20 @@
       return;
     }
 
-    function processSVG() {
-      // Build SVGO options based on checkboxes
-      const opts = {
-        plugins: [
-          { name: 'removeViewBox', active: optRemoveViewBox.checked },
-          { name: 'cleanupIDs', active: optCleanupIDs.checked },
-          { name: 'removeMetadata', active: optRemoveMetadata.checked },
-          { name: 'convertColors', active: optConvertColors.params ? { shortname: false } : { shortname: true } }, // Actually convertColors plugin doesn't have params; we just enable/disable
-          { name: 'removeDimensions', active: optRemoveDimensions.checked }
-        ]
-      };
-      // Filter out falsy plugins
-      opts.plugins = opts.plugins.filter(p => p.active);
-
+    async function processSVG() {
       try {
-        const result = window.SVGO.optimize(svgString, opts);
+        btnOptimize.disabled = true;
+        const { optimize } = await import('../../assets/vendor/svgo.browser.js');
+        const plugins = [];
+        // Keep viewBox when removing dimensions so the image stays scalable.
+        if (optRemoveViewBox.checked && !optRemoveDimensions.checked) plugins.push('removeViewBox');
+        if (optCleanupIDs.checked) plugins.push('cleanupIds');
+        if (optRemoveMetadata.checked) plugins.push('removeMetadata');
+        if (optConvertColors.checked) plugins.push('convertColors');
+        if (optRemoveDimensions.checked) plugins.push('removeDimensions');
+        const result = optimize(svgString, {plugins});
         const optimized = result.data;
-        const info = result.info;
+        const info = {originalSize: new Blob([svgString]).size, size: new Blob([optimized]).size};
         svgOutput.value = optimized;
         // Show preview
         try {
@@ -304,7 +299,7 @@
         hintOptimize.textContent = lang === 'zh' ? '優化失敗，請檢查 SVG 是否有效。' : 'Optimization failed, please check SVG validity.';
         btnDownload.style.display = 'none';
         btnCopy.style.display = 'none';
-      }
+      } finally { btnOptimize.disabled = false; }
     }
   });
 

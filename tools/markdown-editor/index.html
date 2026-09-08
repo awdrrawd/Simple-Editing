@@ -4,24 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>格式小幫手 · Markdown 寫作工具</title>
-<script src="../../assets/shared.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-<link rel="stylesheet" id="hljs-theme" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
+<script src="../../assets/vendor/marked.min.js"></script>
+<script src="../../assets/vendor/purify.min.js"></script>
+<script src="../../assets/vendor/highlight.min.js"></script>
+<link rel="stylesheet" id="hljs-theme" href="../../assets/vendor/highlight-light.css">
 <style>
   :root{ --radius:6px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --danger:#cf222e; --danger-soft:#ffebe9;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --danger:#f85149; --danger-soft:#2d1214;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
@@ -420,7 +421,10 @@ function applyLocale(){
   root.setAttribute('lang', lang === 'zh' ? 'zh-Hant' : 'en');
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
-    if(dict[key] !== undefined) el.textContent = dict[key];
+    if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
   });
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.dataset.i18nTitle;
@@ -445,8 +449,8 @@ let userOverride = SharedSettings.hasExplicitTheme();
 function applyTheme(theme){
   root.setAttribute('data-theme', theme);
   document.getElementById('hljs-theme').href = theme === 'dark'
-    ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css'
-    : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+    ? '../../assets/vendor/highlight-dark.css'
+    : '../../assets/vendor/highlight-light.css';
 }
 applyTheme(SharedSettings.getTheme());
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
@@ -860,3 +864,4 @@ onInput();
 </script>
 </body>
 </html>
+

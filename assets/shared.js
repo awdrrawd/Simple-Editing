@@ -64,6 +64,8 @@
   function setTheme(theme) {
     if (theme !== 'light' && theme !== 'dark') return;
     safeSet(THEME_KEY, theme);
+    document.documentElement.dataset.theme = theme;
+    queueMicrotask(paintToolbar);
   }
 
   function getLang() {
@@ -76,6 +78,9 @@
     if (lang !== 'zh' && lang !== 'en') return;
     safeSet(LANG_KEY, lang);
     paintHomeLinks(lang);
+    paintExtraTranslations(lang);
+    document.dispatchEvent(new CustomEvent('se-language-change', {detail:lang}));
+    queueMicrotask(paintToolbar);
   }
 
   // Generic "back to home" link support. Any element with
@@ -93,6 +98,86 @@
     }
   }
 
+  function paintExtraTranslations(lang) {
+    document.querySelectorAll('[data-se-zh][data-se-en]').forEach(function (el) {
+      var value = lang === 'en' ? el.dataset.seEn : el.dataset.seZh;
+      if (el.matches('input, textarea')) el.placeholder = value;
+      else el.textContent = value;
+    });
+    document.querySelectorAll('[data-title-zh][data-title-en]').forEach(function (el) { el.title = lang === 'en' ? el.dataset.titleEn : el.dataset.titleZh; });
+  }
+
+  function applyTranslations(dict) {
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      var key = el.dataset.i18n;
+      if (dict[key] === undefined) return;
+      if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+      else el.textContent = dict[key];
+    });
+  }
+
+  var toolbar;
+  function paintToolbar() {
+    if (!toolbar) return;
+    var lang = getLang(), dark = document.documentElement.dataset.theme === 'dark';
+    var labels = {
+      theme: lang === 'en' ? '🌓 Theme: ' + (dark ? 'Dark' : 'Light') : '🌓 主題：' + (dark ? '深色' : '淺色'),
+      language: lang === 'en' ? '🌐 中文' : '🌐 English',
+      home: lang === 'en' ? '🏠 Home' : '🏠 回首頁'
+    };
+    toolbar.setAttribute('aria-label', lang === 'en' ? 'Page settings and navigation' : '頁面設定與導覽');
+    toolbar.querySelectorAll('[data-se-control]').forEach(function (el) {
+      var label = labels[el.dataset.seControl];
+      if (el.textContent !== label) el.textContent = label;
+      el.title = label;
+    });
+  }
+
+  function initToolbar() {
+    var theme = document.querySelector('#themeToggle, #btn-theme-toggle');
+    var language = document.querySelector('#localeToggle, #langToggle, #btn-lang-toggle');
+    var home = document.querySelector('[data-se-home]');
+    toolbar = document.createElement('nav');
+    toolbar.className = 'se-toolbar';
+    [[theme, 'theme'], [language, 'language'], [home, 'home']].forEach(function (item) {
+      if (!item[0]) return;
+      item[0].classList.add('se-control');
+      item[0].dataset.seControl = item[1];
+      toolbar.appendChild(item[0]);
+    });
+    document.body.prepend(toolbar);
+    document.documentElement.dataset.theme = getTheme();
+    if (global.matchMedia) global.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (hasExplicitTheme()) return;
+      var theme = e.matches ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+    });
+    paintExtraTranslations(getLang());
+    paintToolbar();
+    new MutationObserver(paintToolbar).observe(toolbar, { childList: true, subtree: true, characterData: true });
+    new MutationObserver(paintToolbar).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  }
+
+  function bytesToBase64(bytes) {
+    var chunks = [];
+    for (var i = 0; i < bytes.length; i += 32768) chunks.push(String.fromCharCode.apply(null, bytes.subarray(i, i + 32768)));
+    return btoa(chunks.join(''));
+  }
+
+  async function copyText(text) {
+    if (navigator.clipboard && global.isSecureContext) return navigator.clipboard.writeText(text);
+    var area = document.createElement('textarea');
+    area.value = text; area.style.position = 'fixed'; area.style.opacity = '0';
+    document.body.appendChild(area); area.select();
+    try { if (!document.execCommand('copy')) throw new Error('Copy failed'); }
+    finally { area.remove(); }
+  }
+
+  function message(el, zh, en) {
+    el.dataset.seZh = zh; el.dataset.seEn = en;
+    el.textContent = getLang() === 'en' ? en : zh;
+  }
+
   global.SharedSettings = {
     THEME_KEY: THEME_KEY,
     LANG_KEY: LANG_KEY,
@@ -101,7 +186,12 @@
     hasExplicitTheme: hasExplicitTheme,
     getLang: getLang,
     setLang: setLang,
-    paintHomeLinks: paintHomeLinks
+    paintHomeLinks: paintHomeLinks,
+    paintExtraTranslations: paintExtraTranslations,
+    applyTranslations: applyTranslations,
+    bytesToBase64: bytesToBase64,
+    copyText: copyText,
+    message: message
   };
 
   // Paint home links as soon as the DOM is ready, in case a page never
@@ -109,8 +199,10 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {
       paintHomeLinks(getLang());
+      initToolbar();
     });
   } else {
     paintHomeLinks(getLang());
+    initToolbar();
   }
 })(window);

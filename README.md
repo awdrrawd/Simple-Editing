@@ -80,17 +80,35 @@ Simple-Editing/
 1. **記住你的選擇**：主題（亮/暗）與語言（中／英）會存在瀏覽器的 `localStorage`，因為所有工具在同一個網域（GitHub Pages 網址）下，所以在任一工具切換過的設定，換到別的工具或回到首頁時也會沿用，不用每個頁面重新設定一次。
 2. **統一「回首頁」按鈕**：每個工具頁面裡帶有 `data-se-home` 屬性的元素，會自動被填上對應語言的文字（「🏠 回首頁」／「🏠 Home」），不需要每個工具各自維護一份翻譯。
 
-每個工具原本各自的主題配色、版面、功能都完全保留，`shared.js` 只負責「記住选择」這一層，不會影響各工具原本的介面設計。
+每頁最上方都有相同的控制列，固定依「主題、語系、回首頁」排列（首頁省略返回按鈕）。`assets/shared.css` 統一位置、字型、按鈕、間距及亮暗配色；各工具工作區保留適合其功能的版面，設定跨工具沿用。
 
-## 如何新增第四個工具
+## 如何新增工具
 
 1. 在 `tools/` 底下新增一個資料夾，例如 `tools/your-tool/`，裡面放 `index.html`。
-2. 在你的 `index.html` 的 `<head>` 引入 `<script src="../../assets/shared.js"></script>`（依你的資料夾深度調整相對路徑）。
+2. 在 `<head>` 引入 `../../assets/shared.js` 與 `../../assets/shared.css`（依深度調整路徑）。主題按鈕使用 `themeToggle`，語系按鈕使用 `localeToggle`。
 3. 在初始化主題／語言的地方改用 `SharedSettings.getTheme()` / `SharedSettings.getLang()` 取得初始值，並在切換按鈕的事件裡呼叫 `SharedSettings.setTheme()` / `SharedSettings.setLang()` 儲存選擇。
 4. 加一個帶有 `data-se-home` 屬性、連到 `../../index.html` 的按鈕或連結，讓使用者可以隨時回到首頁。
 5. 在根目錄 `index.html` 的工具卡片區塊新增一張卡片連到新工具，並在 `README.md` 的工具列表加一列。
-6. 幫新工具寫一份自己的 `README.md`（可以參考現有三個工具的格式）。
+6. 幫新工具寫一份 `README.md`，並在回歸測試頁加入主要操作案例。
+
+## 開發與驗證
+
+瀏覽器套件放在 `assets/vendor/`，不需第三方 CDN。影音引擎約 32 MB，首次轉檔才載入。請透過 HTTP/HTTPS 使用；ES module、Worker 不保證可在 `file://` 下運作。
+
+```sh
+npm ci --ignore-scripts
+npm test
+npm run build
+python audit/fixtures.py
+python -m http.server 8765 --bind 127.0.0.1
+```
+
+開啟 `http://127.0.0.1:8765/audit/browser.html` 按 Run all tests，驗證語系、主題、轉換與匯出。測試使用產生的資料，下載在記憶體中檢查，結束會還原原本設定及計時器資料。不要在同時編輯其他工具時執行。
+
+`npm run build` 驗證後產生 `_site/`，Pages 只發布此目錄，不含依賴安裝目錄、測試頁與測試資料。套件升級後執行 `npm run vendor` 更新瀏覽器檔案。
 
 ## 授權
 
 沒有特別標示的話，這個倉庫內的程式碼皆可自由使用、修改與散布，請視個人需求調整。
+
+第三方套件依各自授權，包含 FFmpeg core 的 GPL-2.0-or-later；版本與授權文件見 [assets/vendor/README.md](assets/vendor/README.md)。

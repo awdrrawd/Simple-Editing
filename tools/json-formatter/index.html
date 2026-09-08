@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>JSON 格式化器 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -165,7 +166,10 @@
     document.title = lang === 'zh' ? 'JSON 格式化器 · 純瀏覽器工具' : 'JSON Formatter · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();

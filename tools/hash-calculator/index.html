@@ -4,19 +4,21 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>雜湊計算器 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<script src="../../assets/vendor/md5.min.js"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -168,7 +170,10 @@
     document.title = lang === 'zh' ? '雜湊計算器 · 純瀏覽器工具' : 'Hash Calculator · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();
@@ -228,9 +233,9 @@
     }
 
     try {
-      const hashBuffer = await crypto.subtle.digest(hashAlgorithm.value, dataToHash);
+      const hashBuffer = hashAlgorithm.value === 'MD5' ? null : await crypto.subtle.digest(hashAlgorithm.value, dataToHash);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      const hashHex = hashAlgorithm.value === 'MD5' ? md5(dataToHash) : hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
       resultAlgorithm.textContent = hashAlgorithm.value;
       resultHash.textContent = hashHex;
@@ -244,15 +249,17 @@
     }
   });
 
-  btnCopy.addEventListener('click', () => {
-    resultHash.select();
-    document.execCommand('copy');
+  btnCopy.addEventListener('click', async () => {
+    if (!resultHash.textContent) return;
+    try { await SharedSettings.copyText(resultHash.textContent); }
+    catch (e) { alert(lang === 'zh' ? '複製失敗，請手動選取結果' : 'Copy failed; please select the result manually'); return; }
     alert(lang === 'zh' ? '已複製到剪貼簿' : 'Copied to clipboard');
   });
 
-  btnCopyHash.addEventListener('click', () => {
-    resultHash.select();
-    document.execCommand('copy');
+  btnCopyHash.addEventListener('click', async () => {
+    if (!resultHash.textContent) return;
+    try { await SharedSettings.copyText(resultHash.textContent); }
+    catch (e) { alert(lang === 'zh' ? '複製失敗，請手動選取結果' : 'Copy failed; please select the result manually'); return; }
     alert(lang === 'zh' ? '已複製雜湊值' : 'Copied hash value');
   });
 

@@ -4,19 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Base64 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -158,7 +159,7 @@
       </div>
       <div class="btn-row">
         <button class="btn primary" id="btnDecode" data-i18n="btnDecode">解碼</button>
-        <button class="btn" id="btnDecodeDownload" data-i18n="btnDownload">下載結果</button>
+        <a class="btn" id="btnDecodeDownload" data-i18n="btnDownload" style="display:none">下載結果</a>
       </div>
       <p class="hint" id="hintDecode" data-i18n="hintDecode">支援標準 Base64 解碼。若選擇「下載檔案」，請先指定檔案名稱。</p>
     </div>
@@ -221,7 +222,10 @@
     document.title = lang === 'zh' ? 'Base64 · 純瀏覽器工具' : 'Base64 · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();
@@ -284,7 +288,7 @@
       sourceName = file.name;
       const reader = new FileReader();
       reader.onload = function(e) {
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(e.target.result)));
+        const base64 = SharedSettings.bytesToBase64(new Uint8Array(e.target.result));
         encodeOutput.value = base64;
         encodeFileInfo.textContent = lang === 'zh'
           ? `已編碼：${sourceName} (${Math.floor(file.size/1024)} KB)`
@@ -304,7 +308,7 @@
       dataToEncode = encodeTextInput.value;
       sourceName = 'text input';
       try {
-        const base64 = btoa(encodeTextInput.value);
+        const base64 = SharedSettings.bytesToBase64(new TextEncoder().encode(encodeTextInput.value));
         encodeOutput.value = base64;
         encodeFileInfo.textContent = lang === 'zh'
           ? `已編碼：純文字 (${encodeTextInput.value.length} 字元)`
@@ -367,12 +371,15 @@
         // Try to decode as UTF-8 text
         let textOutput = '';
         try {
-          textOutput = new TextDecoder('utf-8').decode(bytes);
+          textOutput = new TextDecoder('utf-8', {fatal:true}).decode(bytes);
         } catch (e) {
           // If not valid UTF-8, show as hex or warn
           textOutput = `[Binary data: ${bytes.length} bytes]`;
         }
-        decodeOutput.innerHTML = `<pre>${textOutput}</pre>`;
+        decodeOutput.replaceChildren();
+        const pre = document.createElement('pre');
+        pre.textContent = textOutput;
+        decodeOutput.appendChild(pre);
         btnDecodeDownload.style.display = 'none';
         hintDecode.textContent = lang === 'zh'
           ? `解碼完成！${bytes.length} 位元組已轉換為文字`
@@ -381,6 +388,7 @@
         // File download mode
         const fileName = decodeFileName.value.trim() || 'decoded.bin';
         const blob = new Blob([bytes]);
+        if (btnDecodeDownload.href) URL.revokeObjectURL(btnDecodeDownload.href);
         const url = URL.createObjectURL(blob);
 
         decodeOutput.innerHTML = `<p>${lang === 'zh' ? '準備下載檔案' : 'Ready to download file'}</p>`;

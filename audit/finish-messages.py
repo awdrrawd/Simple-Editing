@@ -1,0 +1,15 @@
+from pathlib import Path
+p=Path('tools/image-editor/index.html');s=p.read_text(encoding='utf-8')
+s=s.replace("passCountHint.textContent = tr(\"尚未套用任何去背。\", \"No background removal applied.\");", "SharedSettings.message(passCountHint, '尚未套用任何去背。', 'No background removal applied.');")
+s=s.replace("passCountHint.textContent = tr(`已套用 ${passCount} 次去背，可繼續調整參數再套用，或重新選色做下一輪。`, `Applied ${passCount} background removal passes. Adjust or pick another color to continue.`);", "SharedSettings.message(passCountHint, `已套用 ${passCount} 次去背，可繼續調整參數再套用，或重新選色做下一輪。`, `Applied ${passCount} background removal passes. Adjust or pick another color to continue.`);")
+s=s.replace("passCountHintAnim.textContent = `已套用 ${animRemovePassCount} 次去背（全部畫格），可繼續調整參數再套用，或重新選色做下一輪。`;", "SharedSettings.message(passCountHintAnim, `已套用 ${animRemovePassCount} 次去背（全部畫格）。`, `Applied ${animRemovePassCount} background removal passes to all frames.`);")
+a=s.index('    passCountHintAnim.textContent = animRemovePassCount > 0');b=s.index('    buildFrameStrip();',a)
+s=s[:a]+"    SharedSettings.message(passCountHintAnim, `已套用 ${animRemovePassCount} 次去背（全部畫格）。`, `Applied ${animRemovePassCount} background removal passes to all frames.`);\n"+s[b:]
+s=s.replace("sizeLine.textContent = `已自動下載 ${filename}（${formatBytes(blob.size)}）`;", "SharedSettings.message(sizeLine, `已自動下載 ${filename}（${formatBytes(blob.size)}）`, `Downloaded ${filename} (${formatBytes(blob.size)})`);\n      setTimeout(() => URL.revokeObjectURL(url), 1000);")
+s=s.replace("sizeLine.textContent = `已儲存 ${filename}（${formatBytes(blob.size)}）`;", "SharedSettings.message(sizeLine, `已儲存 ${filename}（${formatBytes(blob.size)}）`, `Saved ${filename} (${formatBytes(blob.size)})`);")
+s=s.replace("resultEl.textContent = `預估檔案大小：約 ${formatBytes(estimateTotal)}（依 ${sampleFrames.length} 個樣本畫格推算，實際輸出可能略有差異）`;", "SharedSettings.message(resultEl, `預估檔案大小：約 ${formatBytes(estimateTotal)}（依 ${sampleFrames.length} 個樣本畫格推算）`, `Estimated size: ${formatBytes(estimateTotal)} (based on ${sampleFrames.length} sample frames)`);")
+s=s.replace("? '為避免瀏覽器過載，已將擷取張數上限限制為 300 格。'\n        : `已轉換 ${sourceFrames.length} 格，可繼續使用其他工具編輯。`;", "? tr('已達 300 格上限。', 'Reached the 300-frame limit.')\n        : tr(`已轉換 ${sourceFrames.length} 格，可繼續使用其他工具編輯。`, `Converted ${sourceFrames.length} frames, ready to edit.`);")
+s=s.replace("alert('這個瀏覽器不支援 APNG 輸出所需的壓縮串流 API。')", "alert(tr('這個瀏覽器不支援 APNG 輸出所需的壓縮串流 API。', 'APNG export requires browser compression streams.'))")
+s=s.replace("alert('輸出失敗：' +", "alert(tr('輸出失敗：', 'Export failed: ') +")
+s=s.replace("confirm('這會取代目前的動畫內容，確定要繼續嗎？')", "confirm(tr('這會取代目前的動畫內容，確定要繼續嗎？', 'Replace the current animation?'))")
+p.write_text(s,encoding='utf-8')

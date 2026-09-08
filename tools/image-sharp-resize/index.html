@@ -4,21 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>銳利圖片縮放 · 純瀏覽器工具</title>
-<script src="../../assets/shared.js"></script>
+<script src="../../assets/shared.js?v=20260907-2"></script>
+<link rel="stylesheet" href="../../assets/shared.css">
 <!-- Pica for high-quality image resizing -->
-<script src="https://unpkg.com/pica@5.0.0/dist/pica.min.js"></script>
+<script src="../../assets/vendor/pica.min.js"></script>
 <style>
   :root{ --radius:10px; }
   html[data-theme="light"]{
     --bg:#ffffff; --bg-inset:#f6f8fa; --bg-hover:#eef1f4;
     --border:#d0d7de; --text:#1f2328; --text-secondary:#656d76;
-    --accent:#0969da; --accent-soft:#ddf4ff; --accent-text:#ffffff;
+    --accent:#0969da; --accent-hover:#0860ca; --accent-soft:#ddf4ff; --accent-text:#ffffff;
     --shadow:0 1px 2px rgba(0,0,0,0.05);
   }
   html[data-theme="dark"]{
     --bg:#0d1117; --bg-inset:#161b22; --bg-hover:#21262d;
     --border:#30363d; --text:#e6edf3; --text-secondary:#8b949e;
-    --accent:#58a6ff; --accent-soft:#132f4c; --accent-text:#0d1117;
+    --accent:#58a6ff; --accent-hover:#79b8ff; --accent-soft:#132f4c; --accent-text:#0d1117;
     --shadow:0 1px 2px rgba(0,0,0,0.3);
   }
   *{box-sizing:border-box;}
@@ -98,17 +99,17 @@
   <div class="input-group">
     <label for="resizeMode" data-i18n="labelResizeMode">縮放演算法</label>
     <select id="resizeMode">
-      <option value="lanczos3">Lanczos 3 (高品質)</option>
-      <option value="bilinear">雙線性</option>
-      <option value="nearest">最近鄰 (無平滑)</option>
+      <option value="lanczos3" data-se-zh="Lanczos 3 (高品質)" data-se-en="Lanczos 3 (high quality)">Lanczos 3 (高品質)</option>
+      <option value="bilinear" data-se-zh="雙線性" data-se-en="Bilinear">雙線性</option>
+      <option value="nearest" data-se-zh="最近鄰 (無平滑)" data-se-en="Nearest neighbor (no smoothing)">最近鄰 (無平滑)</option>
     </select>
   </div>
   <div class="input-group">
-    <label for="width" data-i18n="labelWidth">寬度 (px)</label>
+    <label for="width" data-i18n="labelWidth"><span data-se-zh="寬度 (px)" data-se-en="Width (px)">寬度 (px)</span></label>
     <input type="number" id="width" min="1" placeholder="例如 800">
   </div>
   <div class="input-group">
-    <label for="height" data-i18n="labelHeight">高度 (px)</label>
+    <label for="height" data-i18n="labelHeight"><span data-se-zh="高度 (px)" data-se-en="Height (px)">高度 (px)</span></label>
     <input type="number" id="height" min="1" placeholder="例如 600">
   </div>
   <div class="input-group">
@@ -164,7 +165,10 @@
     document.title = lang === 'zh' ? '銳利圖片縮放 · 純瀏覽器工具' : 'Sharp Image Resize · Browser-only tool';
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.dataset.i18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
+      if(dict[key] !== undefined) {
+        if (/^placeholder/i.test(key) && el.matches('textarea, input')) el.placeholder = dict[key];
+        else el.textContent = dict[key];
+      }
     });
   }
   applyLocale();
@@ -198,6 +202,8 @@
   const imageOutput = document.getElementById('imageOutput');
   const hintResize = document.getElementById('hintResize');
 
+  let resultUrl;
+  window.addEventListener('pagehide', () => { if (resultUrl) URL.revokeObjectURL(resultUrl); });
   btnResize.addEventListener('click', async () => {
     const file = imageInput.files[0];
     if (!file) {
@@ -205,8 +211,10 @@
       return;
     }
     const img = new Image();
-    img.src = URL.createObjectURL(file);
+    const sourceUrl = URL.createObjectURL(file);
+    btnResize.disabled = true;
     img.onload = async () => {
+      try {
       let targetWidth = parseInt(widthInput.value);
       let targetHeight = parseInt(heightInput.value);
       const scalePercent = parseInt(scaleInput.value);
@@ -231,7 +239,8 @@
       }
 
       // Create offscreen canvas
-      const offscreen = new OffscreenCanvas(finalWidth, finalHeight);
+      const offscreen = document.createElement('canvas');
+      offscreen.width = finalWidth; offscreen.height = finalHeight;
       const ctx = offscreen.getContext('2d');
 
       // Choose algorithm
@@ -241,6 +250,7 @@
         await new Promise((resolve, reject) => {
           pica()
             .resize(img, offscreen, {
+              filter: 'lanczos3',
               unsharpAmount: 80,   // sharpening amount
               unsharpRadius: 0.6,  // radius
               unsharpThreshold: 2  // threshold
@@ -258,31 +268,37 @@
       }
 
       // Convert to blob and show preview
-      offscreen.convertToBlob({type: file.type}).then(blob => {
-        const url = URL.createObjectURL(blob);
+      const blob = await new Promise(resolve => offscreen.toBlob(resolve, ['image/png','image/jpeg','image/webp'].includes(file.type) ? file.type : 'image/png'));
+      if (!blob) throw new Error('Image export failed');
+      {
+        if (resultUrl) URL.revokeObjectURL(resultUrl);
+        const url = resultUrl = URL.createObjectURL(blob);
         imageOutput.innerHTML = `<div class="preview"><img src="${url}" alt="Resized image"></div>`;
         btnDownload.onclick = () => {
           const a = document.createElement('a');
           a.href = url;
           // Preserve original filename with suffix
           const name = file.name.replace(/\.[^.]+$/, '');
-          const ext = file.name.substring(file.name.lastIndexOf('.'));
+          const ext = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' }[blob.type] || '.png';
           a.download = `${name}_resized${ext}`;
           a.click();
-          URL.revokeObjectURL(url);
+
         };
         btnDownload.style.display = 'inline-block';
         hintResize.textContent = lang === 'zh'
           ? `縮放完成！${img.width}×${img.height} → ${finalWidth}×${finalHeight}`
           : `Resize complete! ${img.width}×${img.height} → ${finalWidth}×${finalHeight}`;
-      }).catch(err => {
+      }
+      } catch (err) {
         console.error(err);
         alert(lang === 'zh' ? '產生結果時發生錯誤' : 'Error generating result');
-      });
+      } finally { URL.revokeObjectURL(sourceUrl); btnResize.disabled = false; }
     };
     img.onerror = () => {
+      URL.revokeObjectURL(sourceUrl); btnResize.disabled = false;
       alert(lang === 'zh' ? '無法讀取圖片檔案' : 'Unable to read image file');
     };
+    img.src = sourceUrl;
   });
 
   // Initialize home button text
