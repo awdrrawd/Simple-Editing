@@ -13,6 +13,10 @@ for (const page of pages) {
   const ids = [...markup.matchAll(/\sid="([^"]+)"/g)].map(m => m[1]);
   const duplicates = ids.filter((id, i) => ids.indexOf(id) !== i);
   check(`unique IDs ${page}`, !duplicates.length, duplicates.join(', '));
+  const missingLabelTargets = [...markup.matchAll(/<label\b[^>]*\bfor="([^"]+)"/gi)].map(m => m[1]).filter(id => !ids.includes(id));
+  check(`label targets ${page}`, !missingLabelTargets.length, missingLabelTargets.join(', '));
+  const mainCount = [...markup.matchAll(/<main\b/gi)].length;
+  check(`single main landmark ${page}`, mainCount === 1, `found ${mainCount}`);
   for (const [, attrs] of scripts) {
     const source=attrs.match(/src="([^"]+)"/);
     if (source && !/^https?:/.test(source[1])) check(`local script ${page}: ${source[1]}`,fs.existsSync(path.resolve(root,path.dirname(page),source[1].split('?')[0])));
@@ -25,6 +29,7 @@ for (const page of pages) {
 for (const file of fs.readdirSync(path.join(root,'assets')).filter(f=>f.endsWith('.js'))) {
   try { new vm.Script(fs.readFileSync(path.join(root,'assets',file),'utf8'));check(`syntax assets/${file}`,true); }
   catch(e){check(`syntax assets/${file}`,false,e.message)}
+}
 const home = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 for (const name of fs.readdirSync(path.join(root, 'tools'))) check(`home link ${name}`, home.includes(`href="tools/${name}/"`));
 

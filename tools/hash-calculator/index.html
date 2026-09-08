@@ -95,9 +95,9 @@
 
 <main>
   <div class="input-group">
-    <label for="hashInput" data-i18n="labelInput">輸入文字或選取檔案</label>
+    <label id="hashInputLabel" for="hashTextInput" data-i18n="labelInput">輸入文字或選取檔案</label>
     <div>
-      <input type="file" id="hashFileInput">
+      <input type="file" id="hashFileInput" aria-labelledby="hashInputLabel">
       <div class="hint" data-i18n="hintOrText">或直接貼上文字內容</div>
       <textarea id="hashTextInput" placeholder="在此貼上要計算雜湊的文字..." data-i18n="placeholderText"></textarea>
     </div>

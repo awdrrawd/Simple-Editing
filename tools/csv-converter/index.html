@@ -118,8 +118,8 @@
         <input type="file" id="csvFileInput" accept=".csv,text/csv">
       </div>
       <div class="input-group">
-        <label for="csvOptions" data-i18n="labelCsvOptions">CSV 選項</label>
-        <div>
+        <label id="csvOptionsLabel" for="csvHeader" data-i18n="labelCsvOptions">CSV 選項</label>
+        <div role="group" aria-labelledby="csvOptionsLabel">
           <label><input type="checkbox" id="csvHeader" checked><span data-se-zh="第一行為標題" data-se-en="First row is header"> 第一行為標題</span></label><br>
           <label><input type="checkbox" id="csvDynamicTyping"><span data-se-zh="自動轉換數據類型" data-se-en="Convert numeric and boolean values"> 自動轉換數據類型</span></label>
         </div>
@@ -138,9 +138,9 @@
     </div>
     <div class="tab-panel" id="panel-json2csv">
       <div class="input-group">
-        <label for="jsonInput" data-i18n="labelJsonInput">貼上 JSON 或選取檔案</label>
+        <label id="jsonInputLabel" for="jsonTextInput" data-i18n="labelJsonInput">貼上 JSON 或選取檔案</label>
         <div>
-          <input type="file" id="jsonFileInput" accept=".json,application/json">
+          <input type="file" id="jsonFileInput" accept=".json,application/json" aria-labelledby="jsonInputLabel">
           <div class="hint" data-i18n="hintOrJsonFile">或直接貼上 JSON 內容</div>
           <textarea id="jsonTextInput" placeholder="在此貼上要轉換的 JSON..." data-i18n="placeholderJson"></textarea>
         </div>

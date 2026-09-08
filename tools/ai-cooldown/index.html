@@ -509,7 +509,7 @@
 </style>
 </head>
 <body>
-<div class="container" id="appContainer">
+<main class="container" id="appContainer">
 
   <div class="head-row">
     <div class="brand">
@@ -542,23 +542,23 @@
   <div class="form-grid" id="formPanel">
     <div class="form-row">
       <div class="form-group">
-        <label id="lblSite">AI 網站</label>
+        <label id="lblSite" for="siteName">AI 網站</label>
         <input type="text" id="siteName" placeholder="ChatGPT" value="">
       </div>
       <div class="form-group">
-        <label id="lblAccount">帳號</label>
+        <label id="lblAccount" for="accountName">帳號</label>
         <input type="text" id="accountName" placeholder="工作用" value="">
       </div>
       <div class="form-group" style="flex: 1 0 190px;">
-        <label id="lblCooldown">冷卻時間</label>
-        <div class="time-group">
+        <label id="lblCooldown" for="cdDays">冷卻時間</label>
+        <div class="time-group" role="group" aria-labelledby="lblCooldown">
           <input type="number" id="cdDays" min="0" value="0" placeholder="天"> <span id="unitDay">天</span>
           <input type="number" id="cdHours" min="0" max="23" value="0" placeholder="時"> <span id="unitHour">時</span>
           <input type="number" id="cdMinutes" min="0" max="59" value="30" placeholder="分"> <span id="unitMinute">分</span>
         </div>
       </div>
       <div class="form-group">
-        <label id="lblNote">註解</label>
+        <label id="lblNote" for="noteInput">註解</label>
         <input type="text" id="noteInput" placeholder="進度/備忘" value="">
       </div>
       <div class="form-group" style="flex: 0 0 auto; display:flex; gap:8px;">
@@ -581,7 +581,7 @@
   <!-- 操作列 -->
   <div class="action-bar">
     <div class="filter-area">
-      <input type="text" id="filterInput" placeholder="過濾..." value="">
+      <input type="text" id="filterInput" placeholder="過濾..." value="" aria-label="過濾紀錄">
       <span class="meta-info" id="entryCount">0 筆</span>
     </div>
     <div class="sort-group">
@@ -622,7 +622,7 @@
   <div class="footer">
     <span id="footerTip">點擊星號可標記重要，排序優先</span>
   </div>
-</div>
+</main>
 <script>
   (function() {
     // ----- 多語言詞典 -----
@@ -778,6 +778,7 @@
       addBtnText.textContent = editingId !== null ? t.update : t.add;
       document.getElementById('quickLabel').textContent = t.quick;
       filterInput.placeholder = t.filter;
+      filterInput.setAttribute('aria-label', t.filter);
       sortNameBtn.textContent = t.sortName;
       sortTimeBtn.textContent = t.sortTime;
       sortStarBtn.textContent = t.sortStar;

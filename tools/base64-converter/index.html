@@ -119,9 +119,9 @@
     </div>
     <div class="mode-panel active" id="panel-encode">
       <div class="input-group">
-        <label for="encodeInput" data-i18n="labelEncodeInput">選擇檔案或貼上文字</label>
+        <label id="encodeInputLabel" for="encodeTextInput" data-i18n="labelEncodeInput">選擇檔案或貼上文字</label>
         <div>
-          <input type="file" id="encodeFileInput">
+          <input type="file" id="encodeFileInput" aria-labelledby="encodeInputLabel">
           <div class="hint" data-i18n="hintOrText">或直接貼上文字內容</div>
           <textarea id="encodeTextInput" placeholder="在此貼上要編碼的文字..." data-i18n="placeholderText"></textarea>
         </div>
