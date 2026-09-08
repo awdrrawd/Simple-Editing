@@ -91,16 +91,16 @@
 
 <main>
   <div class="input-group">
-    <label for="svgInput" data-i18n="labelInput">貼上 SVG 或選取檔案</label>
+    <label id="svgInputLabel" for="svgTextInput" data-i18n="labelInput">貼上 SVG 或選取檔案</label>
     <div>
-      <input type="file" id="svgFileInput" accept=".svg,image/svg+xml">
+      <input type="file" id="svgFileInput" accept=".svg,image/svg+xml" aria-labelledby="svgInputLabel">
       <div class="hint" data-i18n="hintOrFile">或直接貼上 SVG 內容</div>
       <textarea id="svgTextInput" placeholder="在此貼上 SVG 程式碼..." data-i18n="placeholderSvg"></textarea>
     </div>
   </div>
   <div class="input-group">
-    <label for="optimizeOptions" data-i18n="labelOptions">優化選項（進階）</label>
-    <div>
+    <label id="optimizeOptionsLabel" for="optRemoveViewBox" data-i18n="labelOptions">優化選項（進階）</label>
+    <div role="group" aria-labelledby="optimizeOptionsLabel">
       <label><input type="checkbox" id="optRemoveViewBox" checked><span data-se-zh="移除不必要的 viewBox" data-se-en="Remove unnecessary viewBox"> 移除不必要的 viewBox</span></label><br>
       <label><input type="checkbox" id="optCleanupIDs" checked><span data-se-zh="清理未使用的 ID" data-se-en="Clean unused IDs"> 清理未使用的 ID</span></label><br>
       <label><input type="checkbox" id="optRemoveMetadata" checked><span data-se-zh="移除 metadata" data-se-en="Remove metadata"> 移除 metadata</span></label><br>
